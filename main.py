@@ -10,7 +10,7 @@ TOTAL_RUNS = 1
 RUN = '16'
 INTERVAL_SIZE = 20
 
-MODEL = 'reemc.lua'
+MODEL = 'conf/reemc.lua'
 BASE_LINK = ['base_link_tx', 'base_link_ty', 'base_link_tz', 'base_link_rz', 'base_link_ry', 'base_link_rx']
 
 PARAMETERS = {'distance': 765
