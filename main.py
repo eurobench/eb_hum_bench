@@ -1,13 +1,20 @@
+import sys
 import pandas as pd
 import numpy as np
 import rbdl
 from sklearn.cluster import OPTICS
+from sklearn.cluster import DBSCAN
+from sklearn.cluster import KMeans
+from sklearn.cluster import MeanShift
+from sklearn.cluster import estimate_bandwidth
+from sklearn.cluster import AgglomerativeClustering
+import hdbscan
 import matplotlib.pyplot as plt
-
+import math
 
 PROJECT = "2021_02_19"
 TOTAL_RUNS = 1
-RUN = '16'
+RUN = '24'
 INTERVAL_SIZE = 20
 
 MODEL = 'conf/reemc.lua'
@@ -29,7 +36,14 @@ MAX_TRQ = {'leg_left_1_joint': 42.7,
            'leg_right_6_joint': 64
            }
 
-class Kinetics:
+SOLE_POS = [0.12, 0., 0.]
+L_FOOT = 'leg_left_6_joint'
+R_FOOT = 'leg_right_6_joint'
+GRAVITY = np.array([0., 0., -9.81])
+LEG_LENGTH = 0.85853
+MASS = 77.5
+
+class BENCH:
     def __init__(self, model, pos, vel, acc, trq, ftl=None, ftr=None, sep=';'):
         self.base_link = BASE_LINK
         self.pos = pd.read_csv(pos, sep=sep)
@@ -41,16 +55,12 @@ class Kinetics:
             self.ftr = pd.read_csv(ftr, sep=sep)
         self.model = rbdl.loadModel(model, floating_base=True, verbose=False)
         self.dof = self.model.dof_count
-        self.start_time = 0
-        self.end_time = 59.95985794067383
-        self.total_dist = 7.65
-        self.g = np.array([0., 0., -9.81])
-        self.l_foot = 'leg_left_6_joint'
-        self.r_foot = 'leg_right_6_joint'
-        self.relative_sole_pos = [0.12, 0., 0.]
-        #self.com_height = 0.81
-        self.leg_length = 0.85853
-        self.mass = 77.5
+        self.g = GRAVITY
+        self.l_foot = L_FOOT
+        self.r_foot = R_FOOT
+        self.relative_sole_pos = SOLE_POS
+        self.leg_length = LEG_LENGTH
+        self.mass = MASS
         # File Header joint order should be equal to joint order from model file
         self.body_map = self.body_map_sorted()
         # TODO check order for all files in a smart way
@@ -76,7 +86,7 @@ class Kinetics:
         resorted = {k: v for k, v in sorted(orig.items(), key=lambda item: item[1])}
         order = self.base_link
         for item in resorted:
-            # replace link(model) with joint(file)
+            # TODO: replace link(model) with joint(file)
             order.append(item.strip().replace('_link', '_joint'))
         return order
 
@@ -85,100 +95,118 @@ class Kinetics:
         foot_r_floor_i = self.ftr.query('force_z > 30').index.values.tolist()
         return foot_l_floor_i, foot_r_floor_i
 
-    def cluster(self):
-        self.in_support_poly = pd.DataFrame(columns=['support'])
+    def gait_segmentation(self):
+        fl_pos, fr_pos, fl_vel, fr_vel = [], [], [], []
+        l_upper = np.zeros(len(self.lead_time))
+        r_upper = np.zeros(len(self.lead_time))
 
-        '''
-        x1_____________x2
-        |               |
-        |     L_FOOT    |--->
-        |               |
-        x4_____________x3
+        # TODO: parameterize weight treshold
 
-        y1_____________y2
-        |               |
-        |    R_FOOT     |--->
-        |               |
-        y4_____________y3               
-        '''
+        up = -(self.mass * 0.8 * self.g)[2]
 
-        self.foot_contacts = pd.DataFrame(
-            columns=['fl_x1', 'fl_y1', 'fl_x2', 'fl_y2', 'fl_x3', 'fl_y3', 'fl_x4', 'fl_y4', 'fr_x1', 'fr_y1', 'fr_x2',
-                     'fr_y2', 'fr_x3', 'fr_y3', 'fr_x4', 'fr_y4'])
-        self.ke = []
-        self.center_of_support = []
+        fl_ft = np.array(self.ftl['force_z'])
+        fr_ft = np.array(self.ftr['force_z'])
 
-        fl_contacts, fr_contacts = self.get_floor_contact_foot()
-        zmp_kinetic = np.zeros(3)
-        fl_point, fr_point = [], []
+        for i_, value in self.lead_time.items():
 
-        for i, value in self.lead_time.items():
-            q = np.array(self.pos.loc[i].drop('time'))
-            qdot = np.array(self.vel.loc[i].drop('time'))
-            qddot = np.array(self.acc.loc[i].drop('time'))
+            q = np.array(self.pos.loc[i_].drop('time'))
+            qdot = np.array(self.vel.loc[i_].drop('time'))
+            qddot = np.array(self.acc.loc[i_].drop('time'))
 
             rbdl.UpdateKinematics(self.model, q, qdot, qddot)
+
             foot_contact_point_l = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                                   self.body_map.index(self.l_foot) + 1,
-                                                                  np.array(self.relative_sole_pos), True)
+                                                                  np.array(self.relative_sole_pos), False)
             foot_contact_point_r = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                                   self.body_map.index(self.r_foot) + 1,
-                                                                  np.array(self.relative_sole_pos), True)
-            fl_point.append(foot_contact_point_l)
-            fr_point.append(foot_contact_point_r)
+                                                                  np.array(self.relative_sole_pos), False)
 
-        fl_y = np.array([row[2] for row in fl_point])
-        fr_y = [row[2] for row in fr_point]
+            foot_velocity_l = rbdl.CalcPointVelocity(self.model, q, qdot, self.body_map.index(self.l_foot) + 1,
+                                                                  np.array(self.relative_sole_pos), False)
 
-        rng = np.random.RandomState(41)
-        X = rng.randn(1, 100)
+            foot_velocity_r = rbdl.CalcPointVelocity(self.model, q, qdot, self.body_map.index(self.r_foot) + 1,
+                                                                  np.array(self.relative_sole_pos), False)
+            fl_pos.append(foot_contact_point_l)
+            fr_pos.append(foot_contact_point_r)
+            fl_vel.append(foot_velocity_l)
+            fr_vel.append(foot_velocity_r)
 
-        timestate = np.arange(0, len(self.lead_time))
-        timearray = np.array(self.lead_time)
-        time = len(np.array(self.lead_time))
-        #data = np.column_stack((timearray, fl_y))
-
-        gradient = np.gradient(fl_y, timearray)
-
-        distances = np.array([Coords2 - Coords1 for Coords1, Coords2 in zip(timearray[:-1], timearray[1:])])
-
-        avg = np.average(distances)
-        min = np.min(distances)
-        max = np.max(distances)
-        print(max)
-
-        ft = np.array(self.ftl['force_z'])
-        # data = np.column_stack((timearray, gradient))
-        data = np.column_stack((timearray, ft))
-
-
-        # clusterer = OPTICS(min_samples=2, min_cluster_size=10, max_eps=0.021, eps = 0.021)
-        clusterer = OPTICS(min_samples=5, min_cluster_size=30, max_eps=5, eps = 5)
-        clusterer.fit(data)
-        #clusterer = DBSCAN(eps=0.05, min_samples=20).fit(dataset)
-        #cluster_labels = clusterer.fit_predict(data)
-
-
-        colors = ['r', 'g', 'b', 'c', 'm', 'y', 'pink', 'skyblue', 'yellow', 'peru', 'r', 'g', 'b', 'c', 'm', 'y', 'pink', 'skyblue', 'yellow', 'peru', 'r', 'g', 'b', 'c', 'm', 'y', 'pink', 'skyblue', 'yellow', 'peru']
-
-        for i in range(len(data)):
-            if clusterer.labels_[i] == -1:
-                color_ = 'grey'
+            if fl_ft[i_] > up:
+                l_upper[i_] = fl_ft[i_]
             else:
-                color_ = colors[clusterer.labels_[i]]
-            plt.scatter(timearray[i], ft[i], color=color_)
-        plt.show()
+                l_upper[i_] = -1
 
-        plt.plot(self.lead_time, fl_y, 'x')
-        plt.show()
-        plt.plot(self.lead_time, fl_y, '-', self.lead_time, fr_y, '-')
-        plt.show()
-        plt.plot(self.lead_time, np.array(self.pos['base_link_tz']))
-        plt.show()
+            if fr_ft[i_] > up:
+                r_upper[i_] = fr_ft[i_]
+            else:
+                r_upper[i_] = -1
+
+        # TODO: parameterize cut off parameters
+
+        fl_pos_x = np.array([row[0] for row in fl_pos])
+        fr_pos_x = np.array([row[0] for row in fr_pos])
+        fl_pos_x_dot = np.gradient(fl_pos_x, np.array(self.lead_time))
+        fr_pos_x_dot = np.gradient(fr_pos_x, np.array(self.lead_time))
+        fl_pos_x_dot_cut = np.array([-1 if x >= 0.1 else x for x in fl_pos_x_dot])
+        fr_pos_x_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_x_dot])
+
+        fl_pos_z = np.array([row[2] for row in fl_pos])
+        fr_pos_z = np.array([row[2] for row in fr_pos])
+        fl_pos_z_dot = np.gradient(fl_pos_z, np.array(self.lead_time))
+        fr_pos_z_dot = np.gradient(fr_pos_z, np.array(self.lead_time))
+        fl_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fl_pos_z_dot])
+        fr_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_z_dot])
+
+        fl_vel_x = np.array([row[0] for row in fl_vel])
+        fr_vel_x = np.array([row[0] for row in fr_vel])
+        fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
+        fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
+
+        segmentation = pd.DataFrame(columns=['fl_single', 'fr_single', 'double'])
+        fl_single = np.zeros(len(self.lead_time), dtype=bool)
+        fr_single = np.zeros(len(self.lead_time), dtype=bool)
+        double = np.zeros(len(self.lead_time), dtype=bool)
+
+        for j_, value in self.lead_time.items():
+            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and fl_vel_x_cut[j_] != -1 and fl_ft[j_] != -1:
+                fl_single[j_] = True
+
+            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_vel_x_cut[j_] != -1 and fr_ft[j_] != -1:
+                fr_single[j_] = True
+
+            if fl_single[j_] == 1 and fr_single[j_] == 1:
+                double[j_] = True
+
+        # for k_ in range(len(self.lead_time)):
+        #     if fl_single[k_] == 1:
+        #         lcolor_ = 'r'
+        #     elif fl_single[k_] == 0:
+        #         lcolor_ = 'b'
+        #     else:
+        #         lcolor_ = 'grey'
+        #     if fr_single[k_] == 1:
+        #         rcolor_ = 'r'
+        #     elif fr_single[k_] == 0:
+        #         rcolor_ = 'b'
+        #     else:
+        #         rcolor_ = 'grey'
+        #     if double[k_] == 1:
+        #         rcolor_ = 'g'
+        #         lcolor_ = 'g'
+        #
+        #     plt.scatter(timearray[k_], fl_pos_x[k_], color=lcolor_, marker='x')
+        #     plt.scatter(timearray[k_], fr_pos_x[k_], color=rcolor_, marker='x')
+        # plt.show()
+
+        segmentation['fl_single'] = fl_single
+        segmentation['fr_single'] = fr_single
+        segmentation['double'] = double
+
+        return segmentation
 
 
 if __name__ == '__main__':
-
     total_runs = TOTAL_RUNS
     experiment = {}
     experiment_norm = {}
@@ -193,5 +221,9 @@ if __name__ == '__main__':
         FTL = 'input/' + PROJECT + '/' + RUN + '/' + str(i) + '/' + 'ftl.csv'
         FTR = 'input/' + PROJECT + '/' + RUN + '/' + str(i) + '/' + 'ftr.csv'
 
-        exp = Kinetics(MODEL, POS, VEL, ACC, TRQ, FTL, FTR)
-        exp.cluster()
+        exp = BENCH(MODEL, POS, VEL, ACC, TRQ, FTL, FTR)
+        seg = exp.gait_segmentation()
+
+        print('fin')
+
+
