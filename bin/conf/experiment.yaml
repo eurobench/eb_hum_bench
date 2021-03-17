@@ -1,0 +1,14 @@
+protocol: 'i3sa'
+project: '2021_02_19'
+run: '12'
+trial: '1'
+gravity: [0., 0., -9.81]
+inputdir: 'input'
+separator: ';'
+files:
+  pos: 'pos.csv'
+  vel: 'vel.csv'
+  acc: 'acc.csv'
+  trq: 'trq.csv'
+  ftl: 'ftl.csv'
+  ftr: 'ftr.csv'

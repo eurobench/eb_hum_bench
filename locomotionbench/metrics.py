@@ -1,40 +1,41 @@
+#!/usr/bin/env python3
 import pandas as pd
 import numpy as np
 import rbdl
 import math
 
-PROJECT = "2021_02_19"
-TOTAL_RUNS = 1
-RUN = '16'
-INTERVAL_SIZE = 20
-
-MODEL = 'conf/reemc.lua'
-BASE_LINK = ['base_link_tx', 'base_link_ty', 'base_link_tz', 'base_link_rz', 'base_link_ry', 'base_link_rx']
-
-PARAMETERS = {'distance': 765
-              }
-MAX_TRQ = {'leg_left_1_joint': 42.7,
-           'leg_left_2_joint': 64,
-           'leg_left_3_joint': 55.7,
-           'leg_left_4_joint': 138.3,
-           'leg_left_5_joint': 80.9,
-           'leg_left_6_joint': 64,
-           'leg_right_1_joint': 42.7,
-           'leg_right_2_joint': 64,
-           'leg_right_3_joint': 55.7,
-           'leg_right_4_joint': 138.3,
-           'leg_right_5_joint': 80.9,
-           'leg_right_6_joint': 64
-           }
-
-SOLE_POS = [0.12, 0., 0.]
-L_FOOT = 'leg_left_6_joint'
-R_FOOT = 'leg_right_6_joint'
-GRAVITY = np.array([0., 0., -9.81])
-LEG_LENGTH = 0.85853
-MASS = 77.5
-SOLE_L = [[0.12, 0.08, -0.09], [0.12, 0.08, 0.12], [0.12, -0.06, 0.12], [0.12, -0.06, -0.09]]
-SOLE_R = [[0.12, 0.06, -0.09], [0.12, 0.06, 0.12], [0.12, -0.08, 0.12], [0.12, -0.08, -0.09]]
+# PROJECT = "2021_02_19"
+# TOTAL_RUNS = 1
+# RUN = '16'
+#
+#
+# MODEL = 'conf/reemc.lua'
+# BASE_LINK = ['base_link_tx', 'base_link_ty', 'base_link_tz', 'base_link_rz', 'base_link_ry', 'base_link_rx']
+#
+# PARAMETERS = {'distance': 765
+#               }
+# MAX_TRQ = {'leg_left_1_joint': 42.7,
+#            'leg_left_2_joint': 64,
+#            'leg_left_3_joint': 55.7,
+#            'leg_left_4_joint': 138.3,
+#            'leg_left_5_joint': 80.9,
+#            'leg_left_6_joint': 64,
+#            'leg_right_1_joint': 42.7,
+#            'leg_right_2_joint': 64,
+#            'leg_right_3_joint': 55.7,
+#            'leg_right_4_joint': 138.3,
+#            'leg_right_5_joint': 80.9,
+#            'leg_right_6_joint': 64
+#            }
+#
+# SOLE_POS = [0.12, 0., 0.]
+# L_FOOT = 'leg_left_6_joint'
+# R_FOOT = 'leg_right_6_joint'
+# GRAVITY = np.array([0., 0., -9.81])
+# LEG_LENGTH = 0.85853
+# MASS = 77.5
+# SOLE_L = [[0.12, 0.08, -0.09], [0.12, 0.08, 0.12], [0.12, -0.06, 0.12], [0.12, -0.06, -0.09]]
+# SOLE_R = [[0.12, 0.06, -0.09], [0.12, 0.06, 0.12], [0.12, -0.08, 0.12], [0.12, -0.08, -0.09]]
 
 
 def calc_cop(p_1, f_1, m_1, p_2=[], f_2=[], m_2=[]):
@@ -59,24 +60,30 @@ def distance_point_vector(p1_, p2_, p3_):
     return np.linalg.norm(np.cross(p2_ - p1_, p1_ - p3_)) / np.linalg.norm(p2_ - p1_)
 
 
-class BENCH:
-    def __init__(self, model, pos, vel, acc, trq, ftl=None, ftr=None, sep=';'):
-        self.base_link = BASE_LINK
-        self.pos = pd.read_csv(pos, sep=sep)
-        self.vel = pd.read_csv(vel, sep=sep)
-        self.acc = pd.read_csv(acc, sep=sep)
-        self.trq = pd.read_csv(trq, sep=sep)
-        if ftl and ftr:
-            self.ftl = pd.read_csv(ftl, sep=sep)
-            self.ftr = pd.read_csv(ftr, sep=sep)
+class Metrics:
+    def __init__(self, robot_, exp_):
+        path = exp_['inputdir'] + '/' + exp_['project'] + '/' + exp_['run'] + '/' + exp_['trial'] + '/'
+        model = robot_['modelpath'] + '/' + robot_['model']
+        self.base_link = robot_['base_link']
+        self.g = exp_['gravity']
+        self.l_foot = robot_['foot_l']
+        self.r_foot = robot_['foot_r']
+        self.relative_sole_pos = robot_['sole_pos']
+        self.leg_length = robot_['leg_length']
+        self.mass = robot_['mass']
+        self.sole_l = robot_['sole_shape_l']
+        self.sole_r = robot_['sole_shape_r']
+
+        self.pos = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
+        self.vel = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
+        self.acc = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
+        self.trq = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
+        if exp_['files']['ftl'] and exp_['files']['ftr']:
+            self.ftl = pd.read_csv(path + exp_['files']['ftl'], sep=exp_['separator'])
+            self.ftr = pd.read_csv(path + exp_['files']['ftr'], sep=exp_['separator'])
         self.model = rbdl.loadModel(model, floating_base=True, verbose=False)
         self.dof = self.model.dof_count
-        self.g = GRAVITY
-        self.l_foot = L_FOOT
-        self.r_foot = R_FOOT
-        self.relative_sole_pos = SOLE_POS
-        self.leg_length = LEG_LENGTH
-        self.mass = MASS
+
         # File Header joint order should be equal to joint order from model file
         self.body_map = self.body_map_sorted()
         # TODO check order for all files in a smart way
@@ -131,7 +138,7 @@ class BENCH:
 
         # TODO: parameterize weight treshold
 
-        up = -(self.mass * 0.8 * self.g)[2]
+        up = -(self.mass * 0.8 * self.g[2])
 
         fl_ft = np.array(self.ftl['force_z'])
         fr_ft = np.array(self.ftr['force_z'])
@@ -300,14 +307,14 @@ class BENCH:
 
         return pd.DataFrame(columns=[item for sublist in concat for item in sublist])
 
-    def calc_indicators(self):
+    def calc_metrics(self):
         #
         # fl_contacts, fr_contacts = self.get_floor_contact_foot()
         zmp = np.zeros(3)
 
         # ol, or, ur, ul
-        foot_corners_l = SOLE_L
-        foot_corners_r = SOLE_R
+        foot_corners_l = self.sole_l
+        foot_corners_r = self.sole_r
         balance_tk = rbdl.BalanceToolkit()
         omegaSmall = 1e-6
         fpe_output = rbdl.FootPlacementEstimatorInfo()
@@ -439,6 +446,7 @@ class BENCH:
                                                                             foot_corners_r)
             self.indicators.loc[i_, ['dist_cap_bos']] = self.distance2edge(cap, corners_l, corners_r, case,
                                                                            invalid_borders)
+        return self.indicators
 
     def calc_com(self, q_, qdot_):
         r_c_ = np.zeros(3)
@@ -590,22 +598,3 @@ class BENCH:
         return gcom_ + np.multiply(v_ * math.sqrt(h_ / abs(self.g[2])), u_)
 
 
-if __name__ == '__main__':
-    total_runs = TOTAL_RUNS
-    experiment = {}
-    experiment_norm = {}
-    for k in range(total_runs):
-        k += 1
-        if k > total_runs:
-            continue
-        POS = 'input/' + PROJECT + '/' + RUN + '/' + str(k) + '/' + 'pos.csv'
-        VEL = 'input/' + PROJECT + '/' + RUN + '/' + str(k) + '/' + 'vel.csv'
-        ACC = 'input/' + PROJECT + '/' + RUN + '/' + str(k) + '/' + 'acc.csv'
-        TRQ = 'input/' + PROJECT + '/' + RUN + '/' + str(k) + '/' + 'trq.csv'
-        FTL = 'input/' + PROJECT + '/' + RUN + '/' + str(k) + '/' + 'ftl.csv'
-        FTR = 'input/' + PROJECT + '/' + RUN + '/' + str(k) + '/' + 'ftr.csv'
-
-        exp = BENCH(MODEL, POS, VEL, ACC, TRQ, FTL, FTR)
-        exp.calc_indicators()
-
-        print('fin')
