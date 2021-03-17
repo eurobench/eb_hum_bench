@@ -15,4 +15,4 @@ if __name__ == '__main__':
     exp = metrics.Metrics(robot, experiment)
     metrics = exp.calc_metrics()
 
-    print('fin')
+    print('---')

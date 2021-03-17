@@ -63,7 +63,7 @@ def distance_point_vector(p1_, p2_, p3_):
 class Metrics:
     def __init__(self, robot_, exp_):
         path = exp_['inputdir'] + '/' + exp_['project'] + '/' + exp_['run'] + '/' + exp_['trial'] + '/'
-        model = robot_['modelpath'] + '/' + robot_['model']
+        model = robot_['modelpath'] + '/' + robot_['robotmodel']
         self.base_link = robot_['base_link']
         self.g = exp_['gravity']
         self.l_foot = robot_['foot_l']
@@ -116,9 +116,6 @@ class Metrics:
 
         self.gait_segments = self.gait_segmentation()
         self.indicators = self.create_indicator_dataframe()
-        # if ftl and ftr:
-        #     self.get_floor_contact_foot()
-        # # self.mechanical = self.mechanical()
 
     def body_map_sorted(self):
         orig = self.model.mBodyNameMap
@@ -136,7 +133,7 @@ class Metrics:
         l_upper = np.zeros(len(self.lead_time))
         r_upper = np.zeros(len(self.lead_time))
 
-        # TODO: parameterize weight treshold
+        # TODO: parameterize weight threshold
 
         up = -(self.mass * 0.8 * self.g[2])
 

@@ -1,5 +1,5 @@
-name: 'reemc'
-model: 'reemc.lua'
+robotname: 'reemc'
+robotmodel: 'reemc.lua'
 modelpath: 'conf'
 modelformat: 'lua'
 base_link: ['base_link_tx', 'base_link_ty', 'base_link_tz', 'base_link_rz', 'base_link_ry', 'base_link_rx']
