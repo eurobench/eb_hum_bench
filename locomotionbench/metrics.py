@@ -2,7 +2,7 @@
 """
 @package locomotionbench
 @file metrics.py
-@author Felix Aller
+@author Felix Aller, Adria Roig
 @brief compute several metrics based on gait segmentation for periodic walking motions
 Copyright (C) 2020 Felix Aller
 Distributed under the  BSD-2-Clause License.
@@ -227,29 +227,28 @@ class Metrics:
             if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_ft[j_] != -1:# and fr_vel_x_cut[j_] != -1:
                 fr_single[j_] = True
 
-            if fl_single[j_] is True and fr_single[j_] is True:
+            if fl_single[j_] and fr_single[j_]:
                 double[j_] = True
 
-        for k_ in range(len(self.lead_time)):
-            if fl_single[k_] == True:
-                lcolor_ = 'r'
-            elif fl_single[k_] == 0:
-                lcolor_ = 'b'
-            else:
-                lcolor_ = 'grey'
-            if fr_single[k_] == True:
-                rcolor_ = 'r'
-            elif fr_single[k_] == 0:
-                rcolor_ = 'b'
-            else:
-                rcolor_ = 'grey'
-            if double[k_] == True:
-                rcolor_ = 'g'
-                lcolor_ = 'g'
-
-            plt.scatter(np.array(self.lead_time)[k_], fl_pos_x[k_], color=lcolor_, marker='x')
-            plt.scatter(np.array(self.lead_time)[k_], fr_pos_x[k_], color=rcolor_, marker='x')
-        plt.show()
+        #for k_ in range(len(self.lead_time)):
+        #    if fl_single[k_] == True:
+        #        lcolor_ = 'r'
+        #    elif fl_single[k_] == 0:
+        #        lcolor_ = 'b'
+        #    else:
+        #        lcolor_ = 'grey'
+        #    if fr_single[k_] == True:
+        #        rcolor_ = 'r'
+        #    elif fr_single[k_] == 0:
+        #        rcolor_ = 'b'
+        #    else:
+        #        rcolor_ = 'grey'
+        #    if double[k_] == True:
+        #        rcolor_ = 'g'
+        #        lcolor_ = 'g'
+        #    plt.scatter(np.array(self.lead_time)[k_], fl_pos_x[k_], color=lcolor_, marker='x')
+        #    plt.scatter(np.array(self.lead_time)[k_], fr_pos_x[k_], color=rcolor_, marker='x')
+        #plt.show()
 
         segmentation['fl_single'] = fl_single
         segmentation['fr_single'] = fr_single
