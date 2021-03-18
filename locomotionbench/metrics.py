@@ -137,6 +137,9 @@ class Metrics:
         return order
 
     def gait_segmentation(self):
+        """
+        segment the complete gait according to 3-phases: single support l/r and double support
+        """
         fl_pos, fr_pos, fl_vel, fr_vel = [], [], [], []
         l_upper = np.zeros(len(self.lead_time))
         r_upper = np.zeros(len(self.lead_time))
@@ -253,6 +256,12 @@ class Metrics:
     @staticmethod
     def create_indicator_dataframe(indicators=None):
         """
+        :param indicators:
+        :return:
+        Accept a list of indicators and prepare an empty pandas dataframe to store all dof for all requested indidcators
+        """
+
+        """
         w_c:            normalized angular momentum
         h_c:            normalized angular momentum at com
         zmp:            zero moment point from dynamic model properties
@@ -317,6 +326,10 @@ class Metrics:
         return pd.DataFrame(columns=[item for sublist in concat for item in sublist])
 
     def calc_metrics(self):
+        """
+        Calculate and return a set of indicators which were previously requested
+        :return: self.indicators
+        """
         #
         # fl_contacts, fr_contacts = self.get_floor_contact_foot()
         zmp = np.zeros(3)
@@ -361,6 +374,8 @@ class Metrics:
             corners_l = []
             corners_r = []
             omega_f = []
+
+            # are we looking at a single support phase (or double): prepare foot left contact
             if i_ in left_single_support or double_support:
                 single_l = True
                 center_of_support_l = rbdl.CalcBodyToBaseCoordinates(self.model, q,
@@ -383,6 +398,7 @@ class Metrics:
                 self.foot_contacts.loc[
                     i_, ['fl_x1', 'fl_y1', 'fl_x2', 'fl_y2', 'fl_x3', 'fl_y3', 'fl_x4', 'fl_y4']] = corners_l
 
+            # are we looking at a single support phase (or double): prepare foot right contact
             if i_ in right_single_support or double_support:
                 single_r = True
                 center_of_support_r = rbdl.CalcBodyToBaseCoordinates(self.model, q,
@@ -403,6 +419,7 @@ class Metrics:
                 self.foot_contacts.loc[
                     i_, ['fr_x1', 'fr_y1', 'fr_x2', 'fr_y2', 'fr_x3', 'fr_y3', 'fr_x4', 'fr_y4']] = corners_r
 
+            # are we looking at a single support phase (or double): prepare foot contact of a support polygon for both feet
             if i_ in double_support:
                 double = True
                 center_of_support = np.multiply(1 / 2, (center_of_support_l + center_of_support_r))
@@ -422,6 +439,7 @@ class Metrics:
                 cop = calc_cop(p_1=center_of_support, f_1=self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']],
                                m_1=self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']])
 
+            # calculate all the indicators
             self.indicators.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
             self.indicators.loc[i_, ['omega_f_x', 'omega_f_y', 'omega_f_z']] = omega_f
 
@@ -438,6 +456,7 @@ class Metrics:
                                      False)
             self.indicators.loc[i_, ['zmp_x', 'zmp_y', 'zmp_z']] = zmp
 
+            # calculate distances from indicators to bos
             invalid_borders, case = self.check_point_within_support_polygon(q, zmp, single_l,
                                                                             single_r, foot_corners_l,
                                                                             foot_corners_r)
