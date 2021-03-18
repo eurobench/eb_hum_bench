@@ -1,6 +1,8 @@
 import yaml
 from locomotionbench import utility, metrics
 
+# TODO: Use arguments from cli. not implemented for debugging purposes
+
 ARG1 = 'conf/experiment.yaml'
 ARG2 = 'conf/robot.yaml'
 
