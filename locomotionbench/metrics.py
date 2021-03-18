@@ -227,26 +227,26 @@ class Metrics:
             if fl_single[j_] is True and fr_single[j_] is True:
                 double[j_] = True
 
-        for k_ in range(len(self.lead_time)):
-            if fl_single[k_] == True:
-                lcolor_ = 'r'
-            elif fl_single[k_] == 0:
-                lcolor_ = 'b'
-            else:
-                lcolor_ = 'grey'
-            if fr_single[k_] == True:
-                rcolor_ = 'r'
-            elif fr_single[k_] == 0:
-                rcolor_ = 'b'
-            else:
-                rcolor_ = 'grey'
-            if double[k_] == True:
-                rcolor_ = 'g'
-                lcolor_ = 'g'
-
-            plt.scatter(np.array(self.lead_time)[k_], fl_pos_x[k_], color=lcolor_, marker='x')
-            plt.scatter(np.array(self.lead_time)[k_], fr_pos_x[k_], color=rcolor_, marker='x')
-        plt.show()
+        # for k_ in range(len(self.lead_time)):
+        #     if fl_single[k_] == True:
+        #         lcolor_ = 'r'
+        #     elif fl_single[k_] == 0:
+        #         lcolor_ = 'b'
+        #     else:
+        #         lcolor_ = 'grey'
+        #     if fr_single[k_] == True:
+        #         rcolor_ = 'r'
+        #     elif fr_single[k_] == 0:
+        #         rcolor_ = 'b'
+        #     else:
+        #         rcolor_ = 'grey'
+        #     if double[k_] == True:
+        #         rcolor_ = 'g'
+        #         lcolor_ = 'g'
+        #
+        #     plt.scatter(np.array(self.lead_time)[k_], fl_pos_x[k_], color=lcolor_, marker='x')
+        #     plt.scatter(np.array(self.lead_time)[k_], fr_pos_x[k_], color=rcolor_, marker='x')
+        # plt.show()
 
         segmentation['fl_single'] = fl_single
         segmentation['fr_single'] = fr_single
