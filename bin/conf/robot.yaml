@@ -7,6 +7,7 @@ leg_length: 0.85853
 mass: 77.5
 foot_l: 'leg_left_6_joint'
 foot_r: 'leg_right_6_joint'
+torso_link: 'torso_1_joint'
 sole_shape_l: [[0.12, 0.08, -0.09], [0.12, 0.08, 0.12], [0.12, -0.06, 0.12], [0.12, -0.06, -0.09]]
 sole_shape_r: [[0.12, 0.06, -0.09], [0.12, 0.06, 0.12], [0.12, -0.08, 0.12], [0.12, -0.08, -0.09]]
 sole_pos: [ 0.12, 0., 0. ]

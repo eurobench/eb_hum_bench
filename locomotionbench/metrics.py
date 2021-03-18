@@ -9,9 +9,11 @@ Distributed under the  BSD-2-Clause License.
 """
 import pandas as pd
 import numpy as np
+import sophus as sp
 import rbdl
 import math
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
 
 # PROJECT = "2021_02_19"
 # TOTAL_RUNS = 1
@@ -77,6 +79,7 @@ class Metrics:
         self.g = exp_['gravity']
         self.l_foot = robot_['foot_l']
         self.r_foot = robot_['foot_r']
+        self.torso_link = robot_['torso_link']
         self.relative_sole_pos = robot_['sole_pos']
         self.leg_length = robot_['leg_length']
         self.mass = robot_['mass']
@@ -293,7 +296,7 @@ class Metrics:
         """
         concat = [['time']]
         if not indicators:
-            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'omega_f']
+            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'omega_f', 'base', 'distance']
         if 'com' in indicators:
             columns = ['com_x', 'com_y', 'com_z', 'com_acc_x', 'com_acc_y', 'com_acc_z']
             concat.append(columns)
@@ -320,6 +323,12 @@ class Metrics:
             concat.append(columns)
         if 'omega_f' in indicators:
             columns = ['omega_f_x', 'omega_f_y', 'omega_f_z']
+            concat.append(columns)
+        if 'base' in indicators:
+            columns = ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']
+            concat.append(columns)
+        if 'distance' in indicators:
+            columns = ['distance_covered', 'n_steps', 'normalized_dist_steps']
             concat.append(columns)
 
         # TODO: FOOT VEL, Orbital E, Proj Err, COM_VEL
@@ -348,6 +357,8 @@ class Metrics:
 
         left_single_support = [x for x in left_single_support if x not in double_support]
         right_single_support = [x for x in right_single_support if x not in double_support]
+
+        distance_traveled, n_steps, normalized_dist_steps = self.n_steps_normalized_by_leg_distance(left_single_support, right_single_support)
 
         for i_, value in self.lead_time.items():
 
@@ -475,6 +486,9 @@ class Metrics:
                                                                             foot_corners_r)
             self.indicators.loc[i_, ['dist_cap_bos']] = self.distance2edge(cap, corners_l, corners_r, case,
                                                                            invalid_borders)
+
+            self.indicators.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']] = self.calc_base_orientation_error(q)
+
         return self.indicators
 
     def calc_com(self, q_, qdot_):
@@ -626,4 +640,47 @@ class Metrics:
     def calc_cap(self, u_, h_, v_, gcom_):
         return gcom_ + np.multiply(v_ * math.sqrt(h_ / abs(self.g[2])), u_)
 
+    def calc_base_orientation_error(self, q):
+        base_orient = rbdl.CalcBodyWorldOrientation(self.model, q, self.body_map.index(self.torso_link) + 1).transpose()
+        r_base_orient = R.from_matrix(base_orient)
+        r_identity = R.from_quat([0, 0, 0, 1])
+        r_error = r_identity * r_base_orient.inv()
+        s_error = sp.SO3(r_error.as_matrix())
+        error = sp.SO3.log(s_error)
+        return error
+
+    def n_steps_normalized_by_leg_distance(self, left_single_support, right_single_support):
+        n_steps = 0
+        support_type = 'DS'
+        print('Double support')
+        prev_p = np.array([0., 0., 0.])
+        distance_traveled = 0.0
+
+        for i_, value in self.lead_time.items():
+            #print(support_type)
+            q = np.array(self.pos.loc[i_].drop('time'))
+            if i_ in left_single_support and i_ in right_single_support:
+                if support_type is not 'DS':
+                    print('Double support {}'.format(i_))
+                support_type = 'DS'
+            elif i_ in left_single_support:
+                if support_type is not 'LS':
+                    print('Left support {}'.format(i_))
+                    p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, np.array([0., 0., 0.]))
+                    distance_traveled += p[0] - prev_p[0]
+                    prev_p = p
+                    n_steps += 1
+                support_type = 'LS'
+            elif i_ in right_single_support:
+                if support_type is not 'RS':
+                    print('Right support {}'.format(i_))
+                    p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1, np.array([0., 0., 0.]))
+                    distance_traveled += p[0] - prev_p[0]
+                    prev_p = p
+                    n_steps += 1
+                support_type = 'RS'
+        print(n_steps)
+        print(distance_traveled)
+        print(distance_traveled / (n_steps * self.leg_length))
+        return distance_traveled, n_steps, distance_traveled / (n_steps * self.leg_length)
 
