@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import rbdl
 import math
+import matplotlib.pyplot as plt
 
 # PROJECT = "2021_02_19"
 # TOTAL_RUNS = 1
@@ -217,35 +218,35 @@ class Metrics:
         double = np.zeros(len(self.lead_time), dtype=bool)
 
         for j_, value in self.lead_time.items():
-            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and fl_vel_x_cut[j_] != -1 and fl_ft[j_] != -1:
+            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1  and fl_ft[j_] != -1:# and fl_vel_x_cut[j_] != -1
                 fl_single[j_] = True
 
-            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_vel_x_cut[j_] != -1 and fr_ft[j_] != -1:
+            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_ft[j_] != -1:# and fr_vel_x_cut[j_] != -1:
                 fr_single[j_] = True
 
-            if fl_single[j_] == 1 and fr_single[j_] == 1:
+            if fl_single[j_] is True and fr_single[j_] is True:
                 double[j_] = True
 
-        # for k_ in range(len(self.lead_time)):
-        #     if fl_single[k_] == 1:
-        #         lcolor_ = 'r'
-        #     elif fl_single[k_] == 0:
-        #         lcolor_ = 'b'
-        #     else:
-        #         lcolor_ = 'grey'
-        #     if fr_single[k_] == 1:
-        #         rcolor_ = 'r'
-        #     elif fr_single[k_] == 0:
-        #         rcolor_ = 'b'
-        #     else:
-        #         rcolor_ = 'grey'
-        #     if double[k_] == 1:
-        #         rcolor_ = 'g'
-        #         lcolor_ = 'g'
-        #
-        #     plt.scatter(timearray[k_], fl_pos_x[k_], color=lcolor_, marker='x')
-        #     plt.scatter(timearray[k_], fr_pos_x[k_], color=rcolor_, marker='x')
-        # plt.show()
+        for k_ in range(len(self.lead_time)):
+            if fl_single[k_] == True:
+                lcolor_ = 'r'
+            elif fl_single[k_] == 0:
+                lcolor_ = 'b'
+            else:
+                lcolor_ = 'grey'
+            if fr_single[k_] == True:
+                rcolor_ = 'r'
+            elif fr_single[k_] == 0:
+                rcolor_ = 'b'
+            else:
+                rcolor_ = 'grey'
+            if double[k_] == True:
+                rcolor_ = 'g'
+                lcolor_ = 'g'
+
+            plt.scatter(np.array(self.lead_time)[k_], fl_pos_x[k_], color=lcolor_, marker='x')
+            plt.scatter(np.array(self.lead_time)[k_], fr_pos_x[k_], color=rcolor_, marker='x')
+        plt.show()
 
         segmentation['fl_single'] = fl_single
         segmentation['fr_single'] = fr_single

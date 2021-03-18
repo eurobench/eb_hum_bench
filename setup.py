@@ -128,4 +128,5 @@ setup(
     cmdclass={
         'upload': UploadCommand,
     },
+    dependency_links=['https://gitlab.com/orb-benchmarking/rbdl_balance/-/tree/master']
 )
