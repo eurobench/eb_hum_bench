@@ -224,7 +224,7 @@ class Metrics:
             if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_ft[j_] != -1:# and fr_vel_x_cut[j_] != -1:
                 fr_single[j_] = True
 
-            if fl_single[j_] is True and fr_single[j_] is True:
+            if fl_single[j_] and fr_single[j_]:
                 double[j_] = True
 
         # for k_ in range(len(self.lead_time)):
