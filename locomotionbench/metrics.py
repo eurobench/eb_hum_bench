@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""
+@package locomotionbench
+@file metrics.py
+@author Felix Aller
+@brief compute several metrics based on gait segmentation for periodic walking motions
+Copyright (C) 2020 Felix Aller
+Distributed under the  BSD-2-Clause License.
+"""
 import pandas as pd
 import numpy as np
 import rbdl
@@ -165,6 +173,7 @@ class Metrics:
             fl_vel.append(foot_velocity_l)
             fr_vel.append(foot_velocity_r)
 
+            # Identify gait phase based on the force torque acting on the the feet
             if fl_ft[i_] > up:
                 l_upper[i_] = fl_ft[i_]
             else:
@@ -177,6 +186,7 @@ class Metrics:
 
         # TODO: parameterize cut off parameters
 
+        # Identify gait phase based on change of position of the feet in gait direction
         fl_pos_x = np.array([row[0] for row in fl_pos])
         fr_pos_x = np.array([row[0] for row in fr_pos])
         fl_pos_x_dot = np.gradient(fl_pos_x, np.array(self.lead_time))
@@ -184,6 +194,7 @@ class Metrics:
         fl_pos_x_dot_cut = np.array([-1 if x >= 0.1 else x for x in fl_pos_x_dot])
         fr_pos_x_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_x_dot])
 
+        # Identify gait phase based on change of height of the feet
         fl_pos_z = np.array([row[2] for row in fl_pos])
         fr_pos_z = np.array([row[2] for row in fr_pos])
         fl_pos_z_dot = np.gradient(fl_pos_z, np.array(self.lead_time))
@@ -191,6 +202,7 @@ class Metrics:
         fl_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fl_pos_z_dot])
         fr_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_z_dot])
 
+        # Identify gait phase based on the velocity of feet
         fl_vel_x = np.array([row[0] for row in fl_vel])
         fr_vel_x = np.array([row[0] for row in fr_vel])
         fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])

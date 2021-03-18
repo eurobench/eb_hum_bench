@@ -1,0 +1,28 @@
+= PI_locomotion
+
+image::https://img.shields.io/badge/License-BSD%202--Clause-blue.svg[link=https://opensource.org/licenses/BSD-2-Clause]
+Copyright Felix Aller 2020
+
+This is a routine to calculate various performance indicators based on metrics from literature for periodic walking motions on humanoid robots.
+It is prepared to be used within the Eurobench Benchmarking Software.
+
+
+== Installation
+
+tba
+
+== Acknowledgements
+[cols="^.^,.^", grid="none", frame="none"]
+|===
+| image:http://eurobench2020.eu/wp-content/uploads/2018/06/cropped-logoweb.png[link="http://eurobench2020.eu"] |Supported by Eurobench - the European robotic platform for bipedal locomotion benchmarking.
+More information: link:http://eurobench2020.eu[Eurobench website]
+
+
+
+| image:http://eurobench2020.eu/wp-content/uploads/2018/02/euflag.png[Euro flag] | This project has received funding from the European Union’s Horizon 2020
+research and innovation programme under grant agreement no. 779963.
+The opinions and arguments expressed reflect only the author‘s view and
+reflect in no way the European Commission‘s opinions.
+The European Commission is not responsible for any use that may be made
+of the information it contains.
+|===
