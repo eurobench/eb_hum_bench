@@ -23,7 +23,6 @@ sole_pos: [ 0.12, 0., 0. ]
 #  leg_right_4_joint: 138.3
 #  leg_right_5_joint: 80.9
 #  leg_right_6_joint: 64
-
   #  x1_____________x2
   #  |               |
   #  |     L_FOOT    |--->
