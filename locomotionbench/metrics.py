@@ -2,7 +2,7 @@
 """
 @package locomotionbench
 @file metrics.py
-@author Felix Aller
+@author Felix Aller, Adria Roig
 @brief compute several metrics based on gait segmentation for periodic walking motions
 Copyright (C) 2020 Felix Aller
 Distributed under the  BSD-2-Clause License.
@@ -311,6 +311,7 @@ class Metrics:
         concat = [['time']]
         if not indicators:
             indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact', 'fc_vel', 'grf']
+
         if 'com' in indicators:
             columns = ['com_x', 'com_y', 'com_z', 'com_acc_x', 'com_acc_y', 'com_acc_z']
             concat.append(columns)
@@ -349,6 +350,12 @@ class Metrics:
             concat.append(columns)
         if 'grf' in indicators:
             columns = ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']
+            concat.append(columns)
+        if 'base' in indicators:
+            columns = ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']
+            concat.append(columns)
+        if 'distance' in indicators:
+            columns = ['distance_covered', 'n_steps', 'normalized_dist_steps']
             concat.append(columns)
 
         # TODO: FOOT VEL, Orbital E, Proj Err, COM_VEL
@@ -708,6 +715,5 @@ class Metrics:
                     prev_p = p
                     n_steps += 1
                 support_type = 'RS'
-
         return distance_traveled, n_steps, distance_traveled / (n_steps * self.leg_length)
 
