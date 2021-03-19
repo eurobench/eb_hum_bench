@@ -374,15 +374,6 @@ class Metrics:
         right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
         double_support = self.gait_segments.query('double == True').index.tolist()
 
-        left_single_support = [x for x in left_single_support if x not in double_support]
-        right_single_support = [x for x in right_single_support if x not in double_support]
-
-        distance_traveled, n_steps, normalized_dist_steps = self.n_steps_normalized_by_leg_distance(left_single_support, right_single_support, double_support)
-
-        fl_ft = np.array(self.ftl['force_z'])
-        fr_ft = np.array(self.ftr['force_z'])
-        impact = self.calc_impact(left_single_support, right_single_support, double_support, 5, fl_ft, fr_ft)
-
         for i_, value in self.lead_time.items():
 
             q = np.array(self.pos.loc[i_].drop('time'))
@@ -472,7 +463,7 @@ class Metrics:
             grf = calc_grf(f_1=foot1.forces, m_1=foot1.moments, f_2=foot2.forces, m_2=foot2.moments)
             self.indicators.loc[i_, ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']] = grf
             fc_vel = foot1.omega_v
-            if foot2.omega_v:
+            if foot2.id is not None:
                 fc_vel = fc_vel + foot2.omega_v
             self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y', 'fc_vel_lin_z']] = fc_vel
             # ----------- #
@@ -494,7 +485,7 @@ class Metrics:
         return r_c_, h_c_, v_c_, a_c_, model_mass_
 
     def distance_to_double_support(self, q_, poi_, foot1_, foot2_):
-        '''
+        """
         needs module shapely
                     3-------2           2-------3
                     |       |           |       |
@@ -508,7 +499,7 @@ class Metrics:
         :param foot1_: containing all information about foot1 (body id, corners in body and global coordinates
         :param foot2_: containing all information about foot2 (body id, corners in body and global coordinates
         :return:
-        '''
+        """
 
         foot1_ori_ = rbdl.CalcBodyWorldOrientation(self.model, q_, foot1_.id, True)
 
@@ -582,8 +573,11 @@ class Metrics:
         error = sp.SO3.log(s_error)
         return error
 
-    def n_steps_normalized_by_leg_distance(self, left_single_support, right_single_support, double_support):
+    def get_n_steps_normalized_by_leg_distance(self):
         n_steps = 0
+        left_single_support = self.gait_segments.query('fl_single == True').index.tolist()
+        right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
+        double_support = self.gait_segments.query('double == True').index.tolist()
         support_type = 'DS'
         prev_p = np.array([0., 0., 0.])
         distance_traveled = 0.0
@@ -593,14 +587,14 @@ class Metrics:
             if i_ in double_support:
                 support_type = 'DS'
             elif i_ in left_single_support:
-                if support_type is not 'LS':
+                if support_type == 'LS':
                     p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, np.array([0., 0., 0.]))
                     distance_traveled += p[0] - prev_p[0]
                     prev_p = p
                     n_steps += 1
                 support_type = 'LS'
             elif i_ in right_single_support:
-                if support_type is not 'RS':
+                if support_type == 'RS':
                     p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1, np.array([0., 0., 0.]))
                     distance_traveled += p[0] - prev_p[0]
                     prev_p = p
@@ -608,27 +602,33 @@ class Metrics:
                 support_type = 'RS'
         return distance_traveled, n_steps, distance_traveled / (n_steps * self.leg_length)
 
-    def calc_impact(self, left_single_support, right_single_support, double_support, n_iterations, fl_ft, fr_ft):
+    def get_impact(self):
         support_type = 'DS'
+        left_single_support = self.gait_segments.query('fl_single == True').index.tolist()
+        right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
+        double_support = self.gait_segments.query('double == True').index.tolist()
+        fl_ft = np.array(self.ftl['force_z'])
+        fr_ft = np.array(self.ftr['force_z'])
         iterations = 0
         impact = 0.0
         n_impacts = 0
+        n_iterations = 5
         for i_, value in self.lead_time.items():
             if i_ in double_support:
-                if support_type is not 'DS':
-                    if(iterations < n_iterations):
+                if support_type == 'DS':
+                    if iterations < n_iterations:
                         iterations += 1
-                        if support_type is 'LS':
+                        if support_type == 'LS':
                             impact += fl_ft[i_]
-                        elif support_type is 'RS':
+                        elif support_type == 'RS':
                             impact += fr_ft[i_]
                     else:
                         support_type = 'DS'
                         n_impacts += 1
                         iterations = 0
             elif i_ in left_single_support:
-                if support_type is 'RS':
-                    if(iterations < n_iterations):
+                if support_type == 'RS':
+                    if iterations < n_iterations:
                         iterations += 1
                         impact += fr_ft[i_]
                     else:
@@ -638,8 +638,8 @@ class Metrics:
                 else:
                     support_type = 'LS'
             elif i_ in right_single_support:
-                if support_type is 'LS':
-                    if(iterations < n_iterations):
+                if support_type == 'LS':
+                    if iterations < n_iterations:
                         iterations += 1
                         impact += fl_ft[i_]
                     else:
@@ -650,4 +650,3 @@ class Metrics:
                     support_type = 'RS'
         impact = impact / (n_impacts * self.mass)
         return impact
-

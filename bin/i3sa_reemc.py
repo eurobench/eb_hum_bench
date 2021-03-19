@@ -16,5 +16,6 @@ if __name__ == '__main__':
 
     exp = metrics.Metrics(robot, experiment)
     metrics = exp.calc_metrics()
-
+    distance_traveled, n_steps, normalized_dist_steps = exp.get_n_steps_normalized_by_leg_distance()
+    impact = exp.get_impact()
     print('---')
