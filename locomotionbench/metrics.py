@@ -47,10 +47,11 @@ import matplotlib.pyplot as plt
 # SOLE_R = [[0.12, 0.06, -0.09], [0.12, 0.06, 0.12], [0.12, -0.08, 0.12], [0.12, -0.08, -0.09]]
 
 
-def calc_cop(p_1, f_1, m_1, p_2=[], f_2=[], m_2=[]):
+def calc_cop(p_1, f_1, m_1, p_2=None, f_2=None, m_2=None):
     cop = np.zeros(3)
     # single support
-    if all(v is None for v in p_2) and all(v is None for v in f_2) and all(v is None for v in m_2):
+    # if all(v is None for v in p_2) and all(v is None for v in f_2) and all(v is None for v in m_2):
+    if p_2 is None and f_2 is None and m_2 is None:
         cop[0] = - (m_1[1] / f_1[2]) + p_1[0]
         cop[1] = p_1[1] + (m_1[0] / f_1[2])
         cop[2] = p_1[2]
@@ -226,6 +227,8 @@ class Metrics:
 
             if fl_single[j_] and fr_single[j_]:
                 double[j_] = True
+                fl_single[j_] = False
+                fr_single[j_] = False
 
         # for k_ in range(len(self.lead_time)):
         #     if fl_single[k_] == True:
@@ -295,7 +298,7 @@ class Metrics:
         if not indicators:
             indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'omega_f']
         if 'com' in indicators:
-            columns = ['com_x', 'com_y', 'com_z', 'com_acc_x', 'com_acc_y', 'com_acc_z']
+            columns = ['com_x', 'com_y', 'com_z', 'com_vel_x', 'com_vel_y', 'com_vel_z', 'com_acc_x', 'com_acc_y', 'com_acc_z']
             concat.append(columns)
         if 'cos' in indicators:  # center of support location
             columns = ['cos_x', 'cos_y', 'cos_z']
@@ -322,7 +325,7 @@ class Metrics:
             columns = ['omega_f_x', 'omega_f_y', 'omega_f_z']
             concat.append(columns)
 
-        # TODO: FOOT VEL, Orbital E, Proj Err, COM_VEL
+        # TODO: Orbital E, Proj Err
 
         return pd.DataFrame(columns=[item for sublist in concat for item in sublist])
 
@@ -333,6 +336,7 @@ class Metrics:
         """
         #
         # fl_contacts, fr_contacts = self.get_floor_contact_foot()
+        self.indicators['time'] = self.lead_time
         zmp = np.zeros(3)
 
         # ol, or, ur, ul
@@ -346,22 +350,26 @@ class Metrics:
         right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
         double_support = self.gait_segments.query('double == True').index.tolist()
 
-        left_single_support = [x for x in left_single_support if x not in double_support]
-        right_single_support = [x for x in right_single_support if x not in double_support]
+        # left_single_support = [x for x in left_single_support if x not in double_support]
+        # right_single_support = [x for x in right_single_support if x not in double_support]
 
         for i_, value in self.lead_time.items():
 
             q = np.array(self.pos.loc[i_].drop('time'))
             qdot = np.array(self.vel.loc[i_].drop('time'))
             qddot = np.array(self.acc.loc[i_].drop('time'))
-            center_of_support = np.array(3)
+            center_of_support = np.empty(3) * np.nan
             rbdl.UpdateKinematics(self.model, q, qdot, qddot)
             single_l, single_r, double = False, False, False
             # <-- Angular Momentum -->
-            r_c, h_c, model_mass = self.calc_com(q, qdot)
+            r_c, h_c, v_c, a_c, model_mass = self.calc_com(q, qdot, qddot)
             h_cn = h_c / (self.mass * self.leg_length ** 2)
+
+            self.indicators.loc[i_, ['com_x', 'com_y', 'com_z']] = r_c
+            self.indicators.loc[i_, ['com_vel_x', 'com_vel_y', 'com_vel_z']] = v_c
+            self.indicators.loc[i_, ['com_acc_x', 'com_acc_y', 'com_acc_z']] = a_c
             self.indicators.loc[i_, ['h_c_x', 'h_c_y', 'h_c_z']] = h_cn
-            # self.com.loc[i], model_mass = self.calc_com(q, qdot)
+            #self.com.loc[i_], model_mass = self.calc_com(q, qdot)
             # w_c = self.calc_normalized_angular_momentum(q, qdot, r_c, h_c)
             # self.w_c.loc[i] = w_c # normalized AM by Body Inertia
             # local AM at COM
@@ -425,7 +433,7 @@ class Metrics:
                 double = True
                 center_of_support = np.multiply(1 / 2, (center_of_support_l + center_of_support_r))
 
-            if all(v is None for v in center_of_support):
+            if np.isnan(center_of_support).any():
                 print('error at: ', i_)
                 continue
 
@@ -443,8 +451,9 @@ class Metrics:
             # calculate all the indicators
             self.indicators.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
             self.indicators.loc[i_, ['omega_f_x', 'omega_f_y', 'omega_f_z']] = omega_f
+            self.indicators.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = center_of_support
 
-            balance_tk.CalculateFootPlacementEstimator(self.model, q, qdot, center_of_support_l, np.array([0., 0., 1.]),
+            balance_tk.CalculateFootPlacementEstimator(self.model, q, qdot, center_of_support, np.array([0., 0., 1.]),
                                                        fpe_output, omegaSmall, False, False)
             fpe = fpe_output.r0F0
 
@@ -477,13 +486,14 @@ class Metrics:
                                                                            invalid_borders)
         return self.indicators
 
-    def calc_com(self, q_, qdot_):
+    def calc_com(self, q_, qdot_, qddot_):
         r_c_ = np.zeros(3)
+        v_c_ = np.zeros(3)
+        a_c_ = np.zeros(3)
         h_c_ = np.zeros(3)
         #  model, q, qdot, com, qddot, com_velocity, com_acceleration, angular_momentum
-        model_mass_ = rbdl.CalcCenterOfMass(self.model, q_, qdot_, r_c_, angular_momentum=h_c_,
-                                            update_kinematics=False)
-        return r_c_, h_c_, model_mass_
+        model_mass_ = rbdl.CalcCenterOfMass(self.model, q_, qdot_, r_c_, qddot_, v_c_, a_c_, h_c_, None, False)
+        return r_c_, h_c_, v_c_, a_c_, model_mass_
 
     def check_point_within_support_polygon(self, q, point, fl_contact, fr_contact, corners_l, corners_r):
         invalid_borders = []
