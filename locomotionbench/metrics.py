@@ -2,7 +2,7 @@
 """
 @package locomotionbench
 @file metrics.py
-@author Felix Aller
+@author Felix Aller, Monika Harant
 @brief compute several metrics based on gait segmentation for periodic walking motions
 Copyright (C) 2020 Felix Aller
 Distributed under the  BSD-2-Clause License.
@@ -11,46 +11,15 @@ import pandas as pd
 import numpy as np
 import rbdl
 import math
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+from shapely.geometry import MultiPoint
 import matplotlib.pyplot as plt
-
-# PROJECT = "2021_02_19"
-# TOTAL_RUNS = 1
-# RUN = '16'
-#
-#
-# MODEL = 'conf/reemc.lua'
-# BASE_LINK = ['base_link_tx', 'base_link_ty', 'base_link_tz', 'base_link_rz', 'base_link_ry', 'base_link_rx']
-#
-# PARAMETERS = {'distance': 765
-#               }
-# MAX_TRQ = {'leg_left_1_joint': 42.7,
-#            'leg_left_2_joint': 64,
-#            'leg_left_3_joint': 55.7,
-#            'leg_left_4_joint': 138.3,
-#            'leg_left_5_joint': 80.9,
-#            'leg_left_6_joint': 64,
-#            'leg_right_1_joint': 42.7,
-#            'leg_right_2_joint': 64,
-#            'leg_right_3_joint': 55.7,
-#            'leg_right_4_joint': 138.3,
-#            'leg_right_5_joint': 80.9,
-#            'leg_right_6_joint': 64
-#            }
-#
-# SOLE_POS = [0.12, 0., 0.]
-# L_FOOT = 'leg_left_6_joint'
-# R_FOOT = 'leg_right_6_joint'
-# GRAVITY = np.array([0., 0., -9.81])
-# LEG_LENGTH = 0.85853
-# MASS = 77.5
-# SOLE_L = [[0.12, 0.08, -0.09], [0.12, 0.08, 0.12], [0.12, -0.06, 0.12], [0.12, -0.06, -0.09]]
-# SOLE_R = [[0.12, 0.06, -0.09], [0.12, 0.06, 0.12], [0.12, -0.08, 0.12], [0.12, -0.08, -0.09]]
 
 
 def calc_cop(p_1, f_1, m_1, p_2=None, f_2=None, m_2=None):
     cop = np.zeros(3)
     # single support
-    # if all(v is None for v in p_2) and all(v is None for v in f_2) and all(v is None for v in m_2):
     if p_2 is None and f_2 is None and m_2 is None:
         cop[0] = - (m_1[1] / f_1[2]) + p_1[0]
         cop[1] = p_1[1] + (m_1[0] / f_1[2])
@@ -70,6 +39,31 @@ def distance_point_vector(p1_, p2_, p3_):
     return np.linalg.norm(np.cross(p2_ - p1_, p1_ - p3_)) / np.linalg.norm(p2_ - p1_)
 
 
+class Foot:
+    def __init__(self, model_=None, id_=None, rel_sole_pos_=None, corners_local_=None, foot_r_c_=None, force_=None,
+                 moment_=None, q_=None, qdot_=None):
+
+        self.id = id_
+        self.corners_local = corners_local_
+        self.foot_r_c = np.array(foot_r_c_)
+        self.forces = force_
+        self.moments = moment_
+        if id_:
+            self.cos, self.omega_f, self.corners_global = self.phase_dep_indicators(model_, q_, qdot_, rel_sole_pos_)
+        else:
+            self.cos, self.omega_f, self.corners_global = None, None, None
+
+    def phase_dep_indicators(self, model__, q__, qdot__, rel_sole_pos__):
+        corners_global = []
+        cos = rbdl.CalcBodyToBaseCoordinates(model__, q__, self.id, np.array(rel_sole_pos__), True)
+        omega_f = rbdl.CalcPointVelocity6D(model__, q__, qdot__, self.id, self.foot_r_c, False)[:3]
+        for j_ in range(len(self.corners_local)):
+            corners_global.append(
+                rbdl.CalcBodyToBaseCoordinates(model__, q__, self.id, np.array(self.corners_local[j_]), True)[:2])
+        corners_global = np.array(corners_global).flatten()
+        return cos, omega_f, corners_global
+
+
 class Metrics:
     def __init__(self, robot_, exp_):
         path = exp_['inputdir'] + '/' + exp_['project'] + '/' + exp_['run'] + '/' + exp_['trial'] + '/'
@@ -83,7 +77,8 @@ class Metrics:
         self.mass = robot_['mass']
         self.sole_l = robot_['sole_shape_l']
         self.sole_r = robot_['sole_shape_r']
-
+        #  TODO: really need this?
+        self.foot_r_c = [0.061129, 0.003362, -0.004923]
         self.pos = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
         self.vel = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
         self.acc = pd.read_csv(path + exp_['files']['pos'], sep=exp_['separator'])
@@ -213,16 +208,18 @@ class Metrics:
         fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
         fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
 
-        segmentation = pd.DataFrame(columns=['fl_single', 'fr_single', 'double'])
+        segmentation = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
         fl_single = np.zeros(len(self.lead_time), dtype=bool)
         fr_single = np.zeros(len(self.lead_time), dtype=bool)
         double = np.zeros(len(self.lead_time), dtype=bool)
 
         for j_, value in self.lead_time.items():
-            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1  and fl_ft[j_] != -1:# and fl_vel_x_cut[j_] != -1
+            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and fl_ft[
+                j_] != -1:  # and fl_vel_x_cut[j_] != -1
                 fl_single[j_] = True
 
-            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_ft[j_] != -1:# and fr_vel_x_cut[j_] != -1:
+            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_ft[
+                j_] != -1:  # and fr_vel_x_cut[j_] != -1:
                 fr_single[j_] = True
 
             if fl_single[j_] and fr_single[j_]:
@@ -298,7 +295,8 @@ class Metrics:
         if not indicators:
             indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'omega_f']
         if 'com' in indicators:
-            columns = ['com_x', 'com_y', 'com_z', 'com_vel_x', 'com_vel_y', 'com_vel_z', 'com_acc_x', 'com_acc_y', 'com_acc_z']
+            columns = ['com_x', 'com_y', 'com_z', 'com_vel_x', 'com_vel_y', 'com_vel_z', 'com_acc_x', 'com_acc_y',
+                       'com_acc_z']
             concat.append(columns)
         if 'cos' in indicators:  # center of support location
             columns = ['cos_x', 'cos_y', 'cos_z']
@@ -334,156 +332,109 @@ class Metrics:
         Calculate and return a set of indicators which were previously requested
         :return: self.indicators
         """
-        #
-        # fl_contacts, fr_contacts = self.get_floor_contact_foot()
+
         self.indicators['time'] = self.lead_time
         zmp = np.zeros(3)
 
-        # ol, or, ur, ul
-        foot_corners_l = self.sole_l
-        foot_corners_r = self.sole_r
         balance_tk = rbdl.BalanceToolkit()
-        omegaSmall = 1e-6
+        omega_small = 1e-6
         fpe_output = rbdl.FootPlacementEstimatorInfo()
 
         left_single_support = self.gait_segments.query('fl_single == True').index.tolist()
         right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
         double_support = self.gait_segments.query('double == True').index.tolist()
 
-        # left_single_support = [x for x in left_single_support if x not in double_support]
-        # right_single_support = [x for x in right_single_support if x not in double_support]
-
         for i_, value in self.lead_time.items():
 
             q = np.array(self.pos.loc[i_].drop('time'))
             qdot = np.array(self.vel.loc[i_].drop('time'))
             qddot = np.array(self.acc.loc[i_].drop('time'))
-            center_of_support = np.empty(3) * np.nan
+
             rbdl.UpdateKinematics(self.model, q, qdot, qddot)
-            single_l, single_r, double = False, False, False
-            # <-- Angular Momentum -->
+
+            # are we looking at a single support phase (or double): prepare foot left contact
+            if i_ in left_single_support:
+                foot1 = Foot(self.model, self.body_map.index(self.l_foot) + 1, self.relative_sole_pos, self.sole_l,
+                             self.foot_r_c, np.array(self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']]),
+                             np.array(self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
+                cos = foot1.cos
+                self.gait_segments.loc[i_, ['fl_obj']] = foot1
+                foot2 = Foot()
+
+            # are we looking at a single support phase (or double): prepare foot right contact
+            elif i_ in right_single_support:
+                foot1 = Foot(self.model, self.body_map.index(self.r_foot) + 1, self.relative_sole_pos, self.sole_r,
+                             self.foot_r_c, np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
+                             np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
+                cos = foot1.cos
+                self.gait_segments.loc[i_, ['fr_obj']] = foot1
+                foot2 = Foot()
+
+            # are we looking at a single support phase (or double): prepare foot contact of a support polygon for both feet
+            elif i_ in double_support:
+                foot1 = Foot(self.model, self.body_map.index(self.l_foot) + 1, self.relative_sole_pos, self.sole_l,
+                             self.foot_r_c, np.array(self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']]),
+                             np.array(self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
+                foot2 = Foot(self.model, self.body_map.index(self.r_foot) + 1, self.relative_sole_pos, self.sole_r,
+                             self.foot_r_c, np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
+                             np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
+                cos = np.multiply(1 / 2, (foot1.cos + foot2.cos))
+                self.gait_segments.loc[i_, ['fl_obj']] = foot1
+                self.gait_segments.loc[i_, ['fr_obj']] = foot2
+            else:  # no contact detected
+                print('error at: ', i_)
+                continue
+
+            # --- NORMALIZED ANGULAR MOMENTUM ABOUT COM --- #
             r_c, h_c, v_c, a_c, model_mass = self.calc_com(q, qdot, qddot)
             h_cn = h_c / (self.mass * self.leg_length ** 2)
-
             self.indicators.loc[i_, ['com_x', 'com_y', 'com_z']] = r_c
             self.indicators.loc[i_, ['com_vel_x', 'com_vel_y', 'com_vel_z']] = v_c
             self.indicators.loc[i_, ['com_acc_x', 'com_acc_y', 'com_acc_z']] = a_c
             self.indicators.loc[i_, ['h_c_x', 'h_c_y', 'h_c_z']] = h_cn
-            #self.com.loc[i_], model_mass = self.calc_com(q, qdot)
-            # w_c = self.calc_normalized_angular_momentum(q, qdot, r_c, h_c)
-            # self.w_c.loc[i] = w_c # normalized AM by Body Inertia
-            # local AM at COM
-            # <-- Angular Momentum
+            # -------------------------------------------- #
 
-            # <-- Kinetic Energy -->
+            # --- KINETIC ENERGY --- #
             # self.ke.append(rbdl.CalcKineticEnergy(self.model, q, qdot))
-            # <-- Kinetic Energy
+            # ---------------------- #
 
-            center_of_support_l, center_of_support_r = [False, False, False], [False, False, False]
-            corners_l = []
-            corners_r = []
-            omega_f = []
-
-            # are we looking at a single support phase (or double): prepare foot left contact
-            if i_ in left_single_support or double_support:
-                single_l = True
-                center_of_support_l = rbdl.CalcBodyToBaseCoordinates(self.model, q,
-                                                                     self.body_map.index(self.l_foot) + 1,
-                                                                     np.array(self.relative_sole_pos), True)
-
-                omega_f = rbdl.CalcPointVelocity6D(self.model, q, qdot, self.body_map.index(self.l_foot) + 1, np.array(
-                    [0.061129,
-                     0.003362,
-                     -0.004923]), False)[:3]
-                center_of_support = center_of_support_l
-
-
-                for j_ in range(len(foot_corners_l)):
-                    corners_l.append(rbdl.CalcBodyToBaseCoordinates(self.model,
-                                                                  q,
-                                                                  self.body_map.index(self.l_foot) + 1,
-                                                                  np.array(foot_corners_l[j_]), True)[:2])
-                corners_l = np.array(corners_l).flatten()
-                self.foot_contacts.loc[
-                    i_, ['fl_x1', 'fl_y1', 'fl_x2', 'fl_y2', 'fl_x3', 'fl_y3', 'fl_x4', 'fl_y4']] = corners_l
-
-            # are we looking at a single support phase (or double): prepare foot right contact
-            if i_ in right_single_support or double_support:
-                single_r = True
-                center_of_support_r = rbdl.CalcBodyToBaseCoordinates(self.model, q,
-                                                                     self.body_map.index(self.r_foot) + 1,
-                                                                     np.array(self.relative_sole_pos), True)
-                omega_f = rbdl.CalcPointVelocity6D(self.model, q, qdot, self.body_map.index(self.r_foot) + 1, np.array(
-                    [0.061129,
-                     0.003362,
-                     -0.004923]), False)[:3]
-                center_of_support = center_of_support_r
-
-                for j_ in range(len(foot_corners_r)):
-                    corners_r.append(rbdl.CalcBodyToBaseCoordinates(self.model,
-                                                                  q,
-                                                                  self.body_map.index(self.r_foot) + 1,
-                                                                  np.array(foot_corners_r[j_]), True)[:2])
-                corners_r = np.array(corners_r).flatten()
-                self.foot_contacts.loc[
-                    i_, ['fr_x1', 'fr_y1', 'fr_x2', 'fr_y2', 'fr_x3', 'fr_y3', 'fr_x4', 'fr_y4']] = corners_r
-
-            # are we looking at a single support phase (or double): prepare foot contact of a support polygon for both feet
-            if i_ in double_support:
-                double = True
-                center_of_support = np.multiply(1 / 2, (center_of_support_l + center_of_support_r))
-
-            if np.isnan(center_of_support).any():
-                print('error at: ', i_)
-                continue
-
-            if double:
-                cop = calc_cop(p_1=center_of_support_l,
-                               f_1=np.array(self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']]),
-                               m_1=np.array(self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']]),
-                               p_2=center_of_support_r,
-                               f_2=np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
-                               m_2=np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]))
-            else:
-                cop = calc_cop(p_1=center_of_support, f_1=self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']],
-                               m_1=self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']])
-
-            # calculate all the indicators
-            self.indicators.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
-            self.indicators.loc[i_, ['omega_f_x', 'omega_f_y', 'omega_f_z']] = omega_f
-            self.indicators.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = center_of_support
-
-            balance_tk.CalculateFootPlacementEstimator(self.model, q, qdot, center_of_support, np.array([0., 0., 1.]),
-                                                       fpe_output, omegaSmall, False, False)
+            # --- FPE --- #
+            balance_tk.CalculateFootPlacementEstimator(self.model, q, qdot, cos, np.array([0., 0., 1.]),
+                                                       fpe_output, omega_small, False, False)
             fpe = fpe_output.r0F0
-
             self.indicators.loc[i_, ['fpe_x', 'fpe_y', 'fpe_z']] = fpe
             self.indicators.loc[i_, ['fpe_err']] = fpe_output.projectionError
+            # ----------- #
+
+            # --- CAP --- #
+            # requires balance_tk from fpe
             cap = self.calc_cap(fpe_output.u, fpe_output.h, fpe_output.v0C0u, fpe_output.r0P0)
             self.indicators.loc[i_, ['cap_x', 'cap_y', 'cap_z']] = cap
+            # ----------- #
 
+            # --- COP --- #
+            cop = calc_cop(foot1.cos, foot1.forces, foot1.moments, foot2.cos, foot2.forces, foot2.moments)
+            self.indicators.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
+            # ----------- #
+
+            # --- ZMP --- #
             rbdl.CalcZeroMomentPoint(self.model, q, qdot, qddot, zmp, np.array([0., 0., 1.]), np.array([0., 0., 1.]),
                                      False)
             self.indicators.loc[i_, ['zmp_x', 'zmp_y', 'zmp_z']] = zmp
+            # ----------- #
 
-            # calculate distances from indicators to bos
-            invalid_borders, case = self.check_point_within_support_polygon(q, zmp, single_l,
-                                                                            single_r, foot_corners_l,
-                                                                            foot_corners_r)
-            self.indicators.loc[i_, ['dist_zmp_bos']] = self.distance2edge(zmp, corners_l, corners_r,
-                                                                           case, invalid_borders)
+            # --- DISTANCES TO BOS --- #
+            self.indicators.loc[i_, ['dist_zmp_bos']] = self.distance_to_support_polygon(q, zmp, foot1, foot2)
+            self.indicators.loc[i_, ['dist_fpe_bos']] = self.distance_to_support_polygon(q, fpe, foot1, foot2)
+            self.indicators.loc[i_, ['dist_cap_bos']] = self.distance_to_support_polygon(q, cap, foot1, foot2)
+            # ------------------------ #
 
-            invalid_borders, case = self.check_point_within_support_polygon(q, fpe, single_l,
-                                                                            single_r, foot_corners_l,
-                                                                            foot_corners_r)
-            self.indicators.loc[i_, ['dist_fpe_bos']] = self.distance2edge(fpe, corners_l, corners_r, case,
-                                                                           invalid_borders)
+            # --- VARIOUS --- #
+            self.indicators.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = cos
+            self.indicators.loc[
+                i_, ['omega_f_x', 'omega_f_y', 'omega_f_z']] = foot1.omega_f  # in ds we just use the left leg
+            # --------------- #
 
-            invalid_borders, case = self.check_point_within_support_polygon(q, cap, single_l,
-                                                                            single_r, foot_corners_l,
-                                                                            foot_corners_r)
-            self.indicators.loc[i_, ['dist_cap_bos']] = self.distance2edge(cap, corners_l, corners_r, case,
-                                                                           invalid_borders)
         return self.indicators
 
     def calc_com(self, q_, qdot_, qddot_):
@@ -491,149 +442,85 @@ class Metrics:
         v_c_ = np.zeros(3)
         a_c_ = np.zeros(3)
         h_c_ = np.zeros(3)
-        #  model, q, qdot, com, qddot, com_velocity, com_acceleration, angular_momentum
         model_mass_ = rbdl.CalcCenterOfMass(self.model, q_, qdot_, r_c_, qddot_, v_c_, a_c_, h_c_, None, False)
         return r_c_, h_c_, v_c_, a_c_, model_mass_
 
-    def check_point_within_support_polygon(self, q, point, fl_contact, fr_contact, corners_l, corners_r):
-        invalid_borders = []
-        case = -1
-        if fl_contact and fr_contact:
-            xr_1 = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1,
-                                                  np.array(corners_r[1]))
-            xr_1_l = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, xr_1)
+    def distance_to_double_support(self, q_, poi_, foot1_, foot2_):
+        '''
+        needs module shapely
+                    3-------2           2-------3
+                    |       |           |       |
+                    | foot2 |           | foot2 |
+        2-------3   4-------1      or   1-------4  3-------2
+        |       |                                  |       |
+        | foot1 |                                  | foot1 |
+        1-------4                                  4-------1
+        :param q_: joint positions and global position and orientation
+        :param poi_: point of interest to be checked whether inside of support polygon
+        :param foot1_: containing all information about foot1 (body id, corners in body and global coordinates
+        :param foot2_: containing all information about foot2 (body id, corners in body and global coordinates
+        :return:
+        '''
 
-            case = 0  # left foot behind right foot
+        foot1_ori_ = rbdl.CalcBodyWorldOrientation(self.model, q_, foot1_.id, True)
 
-            if xr_1_l[2] >= 0:
+        point_ = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id, poi_)
+        point_ = foot1_ori_.dot(point_)
 
-                xr_3 = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1,
-                                                      np.array(corners_r[3]))
-                xr_3_l = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, xr_3)
-                point_l = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, point)
+        polygon = []
 
-                t_1 = (point_l[1] - corners_l[1][1]) / (xr_1_l[1] - corners_l[1][1])
-                y_1 = corners_l[1][2] + t_1 * (xr_1_l[2] - corners_l[1][2])
+        for corner in foot1_.corners_local:
+            cc = foot1_ori_.dot(corner)
+            polygon.append((cc[0], cc[1]))
 
-                t_3 = (point_l[1] - corners_l[3][1]) / (xr_3_l[1] - corners_l[3][1])
-                y_3 = corners_l[3][2] + t_3 * (xr_3_l[2] - corners_l[3][2])
+        for i in range(0, len(foot2_.corners_global), 2):
+            cc = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id,
+                                                np.array([foot2_.corners_global[i], foot2_.corners_global[i + 1], 0.]),
+                                                False)
+            cc = foot1_ori_.dot(cc)
+            polygon.append((cc[0], cc[1]))
 
-                if point_l[1] <= corners_l[0][1] and point_l[2] <= y_1 and point_l[2] <= xr_1_l[2] \
-                        and point_l[1] >= xr_3_l[1] and point_l[2] >= y_3 and point_l[2] >= corners_l[0][2]:
-                    return invalid_borders, case
-                else:
-                    if point_l[1] > corners_l[0][1]:
-                        invalid_borders.append(0)
-                    if point_l[2] > y_1:
-                        invalid_borders.append(1)
-                    if point_l[2] > xr_1_l[2]:
-                        invalid_borders.append(2)
-                    if point_l[1] < xr_3_l[1]:
-                        invalid_borders.append(3)
-                    if point_l[2] < y_3:
-                        invalid_borders.append(4)
-                    if point_l[2] < corners_l[0][2]:
-                        invalid_borders.append(5)
+        point_shapely = Point(point_[0], point_[1])
+        multipoint = MultiPoint(polygon)
+        polygon_shapely = multipoint.convex_hull
+
+        distance = point_shapely.distance(polygon_shapely.boundary)
+
+        if polygon_shapely.contains(point_shapely):
+            return distance
+        else:
+            return -distance
+
+    def distance_to_support_polygon(self, q_, poi_, foot1_, foot2_=None):
+
+        if foot2_.id is None:
+
+            foot1_ori_ = rbdl.CalcBodyWorldOrientation(self.model, q_, foot1_.id, True)
+            # point of interest with respect to the frame of foot1
+            point_ = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id, poi_)
+            # transforming to the orientation of the base frame
+            point_ = foot1_ori_.dot(point_)
+
+            polygon = []
+
+            for corner in foot1_.corners_local:
+                cc = foot1_ori_.dot(corner)
+                polygon.append((cc[0], cc[1]))
+
+            point_shapely = Point(point_[0], point_[1])
+            polygon_shapely = Polygon(polygon)
+
+            # shortest distance to boundary of polygon
+            distance = point_shapely.distance(polygon_shapely.boundary)
+
+            if polygon_shapely.contains(point_shapely):
+                return distance
             else:
-                case = 1  # right foot behind left foot
-                xr_0 = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1,
-                                                      np.array(corners_r[0]))
-                xr_0_l = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, xr_0)
-
-                xr_2 = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1,
-                                                      np.array(corners_r[2]))
-                xr_2_l = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, xr_2)
-                point_l = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, point)
-
-                t_0 = (point_l[1] - corners_l[2][1]) / (xr_2_l[1] - corners_l[2][1])
-                y_0 = corners_l[2][2] + t_0 * (xr_2_l[2] - corners_l[2][2])
-
-                t_2 = (point_l[1] - corners_l[0][1]) / (xr_0_l[1] - corners_l[0][1])
-                y_2 = corners_l[0][2] + t_2 * (xr_0_l[2] - corners_l[0][2])
-
-                if point_l[1] <= corners_l[0][1] and point_l[2] <= corners_l[1][2] and point_l[2] <= y_0 \
-                        and point_l[1] >= xr_2_l[1] and point_l[2] >= xr_0_l[2] and point_l[2] >= y_2:
-                    return invalid_borders, case
-                else:
-                    if point_l[1] > corners_l[0][1]:
-                        invalid_borders.append(0)
-                    if point_l[2] > corners_l[1][2]:
-                        invalid_borders.append(1)
-                    if point_l[2] > y_0:
-                        invalid_borders.append(2)
-                    if point_l[1] < xr_2_l[1]:
-                        invalid_borders.append(3)
-                    if point_l[2] < xr_0_l[2]:
-                        invalid_borders.append(4)
-                    if point_l[2] < y_2:
-                        invalid_borders.append(5)
+                return -distance
 
         else:
-            case = 2  # single support
-            point_r = rbdl.CalcBaseToBodyCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1, point)
-            if corners_r[2][1] <= point_r[1] <= corners_r[0][1] and corners_r[0][2] <= point_r[2] <= corners_r[2][2]:
-                return invalid_borders, case
-            else:
-                if corners_r[2][1] > point_r[1]:
-                    invalid_borders.append(2)
-                if point_r[1] > corners_r[0][1]:
-                    invalid_borders.append(0)
-                if corners_r[0][2] > point_r[2]:
-                    invalid_borders.append(3)
-                if point_r[2] > corners_r[2][2]:
-                    invalid_borders.append(1)
 
-        return invalid_borders, case
-
-    @staticmethod
-    def distance2edge(point, contacts_l_, contacts_r_, case=-1, invalid_borders=None):
-        if invalid_borders is None:
-            invalid_borders = []
-        dist_edge = []
-        indices = [0, 1, 2, 3, 0]
-        point = point[:2]
-        corner_contacts_l = np.array([[contacts_l_[0], contacts_l_[1]],
-                                      [contacts_l_[2], contacts_l_[3]],
-                                      [contacts_l_[4], contacts_l_[5]],
-                                      [contacts_l_[6], contacts_l_[7]],
-                                      ])
-        corner_contacts_r = np.array([[contacts_r_[0], contacts_r_[1]],
-                                      [contacts_r_[2], contacts_r_[3]],
-                                      [contacts_r_[4], contacts_r_[5]],
-                                      [contacts_r_[6], contacts_r_[7]],
-                                      ])
-
-        if case == 2:  # single support
-            for i_ in range(len(indices) - 1):
-                dist_edge.append(
-                    distance_point_vector(corner_contacts_r[indices[i_]], corner_contacts_r[indices[i_ + 1]], point))
-
-        elif case == 0:  # left foot behind right foot
-            dist_edge.append(distance_point_vector(corner_contacts_l[0], corner_contacts_l[1], point))
-            dist_edge.append(distance_point_vector(corner_contacts_l[1], corner_contacts_r[1], point))
-            dist_edge.append(distance_point_vector(corner_contacts_r[1], corner_contacts_r[2], point))
-            dist_edge.append(distance_point_vector(corner_contacts_r[2], corner_contacts_r[3], point))
-            dist_edge.append(distance_point_vector(corner_contacts_r[3], corner_contacts_l[3], point))
-            dist_edge.append(distance_point_vector(corner_contacts_l[3], corner_contacts_l[0], point))
-        elif case == 1:  # right foot behind left foot
-            dist_edge.append(distance_point_vector(corner_contacts_l[0], corner_contacts_l[1], point))
-            dist_edge.append(distance_point_vector(corner_contacts_l[1], corner_contacts_l[2], point))
-            dist_edge.append(distance_point_vector(corner_contacts_l[2], corner_contacts_r[2], point))
-            dist_edge.append(distance_point_vector(corner_contacts_r[2], corner_contacts_r[3], point))
-            dist_edge.append(distance_point_vector(corner_contacts_r[3], corner_contacts_r[0], point))
-            dist_edge.append(distance_point_vector(corner_contacts_r[0], corner_contacts_l[0], point))
-        else:
-            print("case does not exist: minimum edge", case)
-
-        for i_ in invalid_borders:
-            dist_edge[i_] = -dist_edge[i_]
-
-        if case == 2 and np.amin(dist_edge) > 0.07:
-            print(dist_edge)
-
-        return np.amin(dist_edge)
+            return self.distance_to_double_support(q_, poi_, foot1_, foot2_)
 
     def calc_cap(self, u_, h_, v_, gcom_):
         return gcom_ + np.multiply(v_ * math.sqrt(h_ / abs(self.g[2])), u_)
-
-
