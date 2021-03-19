@@ -351,12 +351,6 @@ class Metrics:
         if 'grf' in indicators:
             columns = ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']
             concat.append(columns)
-        if 'base' in indicators:
-            columns = ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']
-            concat.append(columns)
-        if 'distance' in indicators:
-            columns = ['distance_covered', 'n_steps', 'normalized_dist_steps']
-            concat.append(columns)
 
         # TODO: FOOT VEL, Orbital E, Proj Err, COM_VEL
 
@@ -489,6 +483,8 @@ class Metrics:
                                f_2=np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
                                m_2=np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]))
             else:
+                cop = calc_cop(p_1=center_of_support, f_1=self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']],
+                               m_1=self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']])
                 grf = calc_grf(f_1=self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']], m_1=self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']])
 
             # calculate all the indicators
