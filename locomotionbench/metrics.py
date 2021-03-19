@@ -381,6 +381,10 @@ class Metrics:
 
         distance_traveled, n_steps, normalized_dist_steps = self.n_steps_normalized_by_leg_distance(left_single_support, right_single_support, double_support)
 
+        fl_ft = np.array(self.ftl['force_z'])
+        fr_ft = np.array(self.ftr['force_z'])
+        impact = self.calc_impact(left_single_support, right_single_support, double_support, 5, fl_ft, fr_ft)
+
         for i_, value in self.lead_time.items():
 
             q = np.array(self.pos.loc[i_].drop('time'))
@@ -693,7 +697,6 @@ class Metrics:
         distance_traveled = 0.0
         
         for i_, value in self.lead_time.items():
-            #print(support_type)
             q = np.array(self.pos.loc[i_].drop('time'))
             if i_ in double_support:
                 support_type = 'DS'
@@ -712,4 +715,47 @@ class Metrics:
                     n_steps += 1
                 support_type = 'RS'
         return distance_traveled, n_steps, distance_traveled / (n_steps * self.leg_length)
+
+    def calc_impact(self, left_single_support, right_single_support, double_support, n_iterations, fl_ft, fr_ft):
+        support_type = 'DS'
+        iterations = 0
+        impact = 0.0
+        n_impacts = 0
+        for i_, value in self.lead_time.items():
+            if i_ in double_support:
+                if support_type is not 'DS':
+                    if(iterations < n_iterations):
+                        iterations += 1
+                        if support_type is 'LS':
+                            impact += fl_ft[i_]
+                        elif support_type is 'RS':
+                            impact += fr_ft[i_]
+                    else:
+                        support_type = 'DS'
+                        n_impacts += 1
+                        iterations = 0
+            elif i_ in left_single_support:
+                if support_type is 'RS':
+                    if(iterations < n_iterations):
+                        iterations += 1
+                        impact += fr_ft[i_]
+                    else:
+                        support_type = 'LS'
+                        n_impacts += 1
+                        iterations = 0
+                else:
+                    support_type = 'LS'
+            elif i_ in right_single_support:
+                if support_type is 'LS':
+                    if(iterations < n_iterations):
+                        iterations += 1
+                        impact += fl_ft[i_]
+                    else:
+                        support_type = 'RS'
+                        n_impacts += 1
+                        iterations = 0
+                else:
+                    support_type = 'RS'
+        impact = impact / (n_impacts * self.mass)
+        return impact
 
