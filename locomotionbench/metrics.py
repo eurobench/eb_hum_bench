@@ -63,6 +63,19 @@ def calc_cop(p_1, f_1, m_1, p_2=[], f_2=[], m_2=[]):
         cop[2] = p_2[2]
     return cop
 
+def calc_grf(f_1, m_1, f_2=[], m_2=[]):
+    grf = np.zeros(4)
+    if all(v is None for v in f_2) and all(v is None for v in m_2):
+        grf[0] = abs(f_1[0]) / f_1[2]
+        grf[1] = abs(f_1[1]) / f_1[2]
+        grf[2] = abs(m_1[0]) / f_1[2]
+        grf[3] = abs(m_1[1]) / f_1[2]
+    else:
+        grf[0] = (abs(f_1[0]) / f_1[2]) + (abs(f_2[0]) / f_2[2])
+        grf[1] = (abs(f_1[1]) / f_1[2]) + (abs(f_2[1]) / f_2[2])
+        grf[2] = (abs(m_1[0]) / f_1[2]) + (abs(m_2[0]) / f_2[2])
+        grf[3] = (abs(m_1[1]) / f_1[2]) + (abs(m_2[1]) / f_2[2])
+    return grf
 
 def distance_point_vector(p1_, p2_, p3_):
     p1_ = np.array(p1_)
@@ -98,6 +111,7 @@ class Metrics:
 
         # File Header joint order should be equal to joint order from model file
         self.body_map = self.body_map_sorted()
+
         # TODO check order for all files in a smart way
         column_names = list(self.pos.columns)
         column_names.remove('time')
@@ -296,7 +310,7 @@ class Metrics:
         """
         concat = [['time']]
         if not indicators:
-            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'omega_f', 'base', 'distance']
+            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact', 'fc_vel', 'grf']
         if 'com' in indicators:
             columns = ['com_x', 'com_y', 'com_z', 'com_acc_x', 'com_acc_y', 'com_acc_z']
             concat.append(columns)
@@ -321,14 +335,20 @@ class Metrics:
         if 'cap' in indicators:
             columns = ['cap_x', 'cap_y', 'cap_z', 'dist_cap_bos']
             concat.append(columns)
-        if 'omega_f' in indicators:
-            columns = ['omega_f_x', 'omega_f_y', 'omega_f_z']
-            concat.append(columns)
         if 'base' in indicators:
             columns = ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']
             concat.append(columns)
         if 'distance' in indicators:
             columns = ['distance_covered', 'n_steps', 'normalized_dist_steps']
+            concat.append(columns)
+        if 'impact' in indicators:
+            columns = ['impact']
+            concat.append(columns)
+        if 'fc_vel' in indicators:
+            columns = ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y', 'fc_vel_lin_z']
+            concat.append(columns)
+        if 'grf' in indicators:
+            columns = ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']
             concat.append(columns)
 
         # TODO: FOOT VEL, Orbital E, Proj Err, COM_VEL
@@ -358,7 +378,7 @@ class Metrics:
         left_single_support = [x for x in left_single_support if x not in double_support]
         right_single_support = [x for x in right_single_support if x not in double_support]
 
-        distance_traveled, n_steps, normalized_dist_steps = self.n_steps_normalized_by_leg_distance(left_single_support, right_single_support)
+        distance_traveled, n_steps, normalized_dist_steps = self.n_steps_normalized_by_leg_distance(left_single_support, right_single_support, double_support)
 
         for i_, value in self.lead_time.items():
 
@@ -388,7 +408,7 @@ class Metrics:
             omega_f = []
 
             # are we looking at a single support phase (or double): prepare foot left contact
-            if i_ in left_single_support or double_support:
+            if i_ in left_single_support:
                 single_l = True
                 center_of_support_l = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                                      self.body_map.index(self.l_foot) + 1,
@@ -397,7 +417,7 @@ class Metrics:
                 omega_f = rbdl.CalcPointVelocity6D(self.model, q, qdot, self.body_map.index(self.l_foot) + 1, np.array(
                     [0.061129,
                      0.003362,
-                     -0.004923]), False)[:3]
+                     -0.004923]), False)
                 center_of_support = center_of_support_l
 
 
@@ -411,7 +431,7 @@ class Metrics:
                     i_, ['fl_x1', 'fl_y1', 'fl_x2', 'fl_y2', 'fl_x3', 'fl_y3', 'fl_x4', 'fl_y4']] = corners_l
 
             # are we looking at a single support phase (or double): prepare foot right contact
-            if i_ in right_single_support or double_support:
+            elif i_ in right_single_support:
                 single_r = True
                 center_of_support_r = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                                      self.body_map.index(self.r_foot) + 1,
@@ -419,7 +439,7 @@ class Metrics:
                 omega_f = rbdl.CalcPointVelocity6D(self.model, q, qdot, self.body_map.index(self.r_foot) + 1, np.array(
                     [0.061129,
                      0.003362,
-                     -0.004923]), False)[:3]
+                     -0.004923]), False)
                 center_of_support = center_of_support_r
 
                 for j_ in range(len(foot_corners_r)):
@@ -432,9 +452,19 @@ class Metrics:
                     i_, ['fr_x1', 'fr_y1', 'fr_x2', 'fr_y2', 'fr_x3', 'fr_y3', 'fr_x4', 'fr_y4']] = corners_r
 
             # are we looking at a single support phase (or double): prepare foot contact of a support polygon for both feet
-            if i_ in double_support:
+            elif i_ in double_support:
                 double = True
                 center_of_support = np.multiply(1 / 2, (center_of_support_l + center_of_support_r))
+
+                omega_lf = rbdl.CalcPointVelocity6D(self.model, q, qdot, self.body_map.index(self.l_foot) + 1, np.array(
+                    [0.061129,
+                     0.003362,
+                     -0.004923]), False)
+                omega_rf = rbdl.CalcPointVelocity6D(self.model, q, qdot, self.body_map.index(self.r_foot) + 1, np.array(
+                    [0.061129,
+                     0.003362,
+                     -0.004923]), False)
+                omega_f = omega_lf + omega_rf
 
             if all(v is None for v in center_of_support):
                 print('error at: ', i_)
@@ -447,13 +477,17 @@ class Metrics:
                                p_2=center_of_support_r,
                                f_2=np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
                                m_2=np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]))
+                grf = calc_grf(f_1=np.array(self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']]),
+                               m_1=np.array(self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']]),
+                               f_2=np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
+                               m_2=np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]))
             else:
-                cop = calc_cop(p_1=center_of_support, f_1=self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']],
-                               m_1=self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']])
+                grf = calc_grf(f_1=self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']], m_1=self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']])
 
             # calculate all the indicators
             self.indicators.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
-            self.indicators.loc[i_, ['omega_f_x', 'omega_f_y', 'omega_f_z']] = omega_f
+            self.indicators.loc[i_, ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']] = grf
+            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y', 'fc_vel_lin_z']] = omega_f
 
             balance_tk.CalculateFootPlacementEstimator(self.model, q, qdot, center_of_support_l, np.array([0., 0., 1.]),
                                                        fpe_output, omegaSmall, False, False)
@@ -649,23 +683,19 @@ class Metrics:
         error = sp.SO3.log(s_error)
         return error
 
-    def n_steps_normalized_by_leg_distance(self, left_single_support, right_single_support):
+    def n_steps_normalized_by_leg_distance(self, left_single_support, right_single_support, double_support):
         n_steps = 0
         support_type = 'DS'
-        print('Double support')
         prev_p = np.array([0., 0., 0.])
         distance_traveled = 0.0
-
+        
         for i_, value in self.lead_time.items():
             #print(support_type)
             q = np.array(self.pos.loc[i_].drop('time'))
-            if i_ in left_single_support and i_ in right_single_support:
-                if support_type is not 'DS':
-                    print('Double support {}'.format(i_))
+            if i_ in double_support:
                 support_type = 'DS'
             elif i_ in left_single_support:
                 if support_type is not 'LS':
-                    print('Left support {}'.format(i_))
                     p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, np.array([0., 0., 0.]))
                     distance_traveled += p[0] - prev_p[0]
                     prev_p = p
@@ -673,14 +703,11 @@ class Metrics:
                 support_type = 'LS'
             elif i_ in right_single_support:
                 if support_type is not 'RS':
-                    print('Right support {}'.format(i_))
                     p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1, np.array([0., 0., 0.]))
                     distance_traveled += p[0] - prev_p[0]
                     prev_p = p
                     n_steps += 1
                 support_type = 'RS'
-        print(n_steps)
-        print(distance_traveled)
-        print(distance_traveled / (n_steps * self.leg_length))
+
         return distance_traveled, n_steps, distance_traveled / (n_steps * self.leg_length)
 
