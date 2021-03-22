@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+"""
+@package locomotionbench
+@file utility.py
+@author Felix Aller, Monika Harant, Adria Roig
+@brief export python standard data types according to eurobench yaml file format
+Copyright (C) 2020 Felix Aller
+Distributed under the  BSD-2-Clause License.
+"""
 import numpy as np
 
 
