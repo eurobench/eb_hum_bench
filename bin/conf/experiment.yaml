@@ -2,6 +2,7 @@ protocol: 'i3sa'
 project: '2021_02_19'
 run: '14'
 trial: '1'
+indicators: ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact', 'fc_vel', 'grf']
 gravity: [0., 0., -9.81]
 inputdir: 'input'
 separator: ';'

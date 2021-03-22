@@ -1,5 +1,6 @@
 import yaml
-from locomotionbench import utility, metrics
+from locomotionbench import utility, metrics, indicators
+import matplotlib.pyplot as plt
 
 # TODO: Use arguments from cli. not implemented for debugging purposes
 
@@ -15,13 +16,17 @@ if __name__ == '__main__':
     robot = yaml.load(r_yaml, Loader=yaml.FullLoader)
 
     exp = metrics.Metrics(robot, experiment)
-    metrics = exp.calc_metrics()
-    distance_traveled, n_steps, normalized_dist_steps = exp.get_n_steps_normalized_by_leg_distance()
-    impact = exp.get_impact()
+    gait_phases = exp.get_gait_segments()
+    metrics = exp.calc_metrics(gait_phases)
 
-    export.export_scalar(impact, OUTPUT + 'impact.yaml')
-    export.export_scalar(distance_traveled, OUTPUT + 'distance_traveled.yaml')
-    export.export_scalar(n_steps, OUTPUT + 'n_steps.yaml')
-    export.export_scalar(normalized_dist_steps, OUTPUT + 'normalized_dist_steps.yaml')
+    distance_traveled, n_steps, normalized_dist_steps = exp.get_n_steps_normalized_by_leg_distance(gait_phases)
+    impact = exp.get_impact(gait_phases)
+
+    indicators = indicators.Indicators(experiment, metrics, gait_phases)
+
+    # export.export_scalar(impact, OUTPUT + 'impact.yaml')
+    # export.export_scalar(distance_traveled, OUTPUT + 'distance_traveled.yaml')
+    # export.export_scalar(n_steps, OUTPUT + 'n_steps.yaml')
+    # export.export_scalar(normalized_dist_steps, OUTPUT + 'normalized_dist_steps.yaml')
 
     print('---')
