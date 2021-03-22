@@ -389,18 +389,19 @@ class Metrics:
         right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
         double_support = self.gait_segments.query('double == True').index.tolist()
 
+        # TODO: control cropping in yaml settings
+        # crop either double support phases at beginning and end or in addition also crop first and last half step
         start_ds_end, end_ds_start = self.crop_start_end_phases()
         remove_front, remove_back = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
         if remove_front:
-            cut_off_time = self.lead_time.loc[remove_front + 1]
-            self.indicators['time'] = self.lead_time[remove_front + 1 : remove_back - 1]
+            self.indicators['time'] = self.lead_time[remove_front + 1: remove_back + 1] - self.lead_time.loc[remove_front + 1]
         else:
             self.indicators['time'] = self.lead_time
 
         for i_, value in self.lead_time.items():
             if i_ <= remove_front:
                 continue
-            if i_ >= remove_back:
+            if i_ > remove_back:
                 continue
 
             q = np.array(self.pos.loc[i_].drop('time'))
@@ -504,7 +505,7 @@ class Metrics:
             self.indicators.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y',
                                      'base_orientation_error_z']] = self.calc_base_orientation_error(q)
             # --------------- #
-        plt.show()
+
         return self.indicators
 
     def calc_com(self, q_, qdot_, qddot_):
