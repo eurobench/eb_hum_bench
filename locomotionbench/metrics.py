@@ -163,16 +163,16 @@ class Metrics:
         fl_pos, fr_pos, fl_vel, fr_vel = [], [], [], []
         l_upper = np.zeros(len(self.lead_time))
         r_upper = np.zeros(len(self.lead_time))
-        smooth = 0.5
+        smooth = 0.99
         # TODO: parameterize weight threshold
 
         up = -(self.mass * 0.2 * self.g[2])
 
         fl_ft = np.array(self.ftl['force_z'])
         fr_ft = np.array(self.ftr['force_z'])
-        fl_ft_spl = csaps(self.lead_time, np.array(self.ftl['force_z']), smooth=0.99)
+        fl_ft_spl = csaps(self.lead_time, np.array(self.ftl['force_z']), smooth=smooth)
         fl_ft_smooth = fl_ft_spl(self.lead_time)
-        fr_ft_spl = csaps(self.lead_time, np.array(self.ftr['force_z']), smooth=0.99)
+        fr_ft_spl = csaps(self.lead_time, np.array(self.ftr['force_z']), smooth=smooth)
         fr_ft_smooth = fr_ft_spl(self.lead_time)
 
         for i_, value in self.lead_time.items():
@@ -230,8 +230,8 @@ class Metrics:
         fr_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_z_dot])
 
         # Identify gait phase based on the velocity of feet
-        fl_vel_x = np.array([row[0] for row in fl_vel])
-        fr_vel_x = np.array([row[0] for row in fr_vel])
+        # fl_vel_x = np.array([row[0] for row in fl_vel])
+        # fr_vel_x = np.array([row[0] for row in fr_vel])
         # fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
         # fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
 
@@ -241,12 +241,12 @@ class Metrics:
         double = np.zeros(len(self.lead_time), dtype=bool)
 
         for j_, value in self.lead_time.items():
-            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and l_upper[
-                j_] != -999:  # and fl_vel_x_cut[j_] != -1
+            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and l_upper[j_] != -999:
+                # and fl_vel_x_cut[j_] != -1
                 fl_single[j_] = True
 
-            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and r_upper[
-                j_] != -999:  # and fr_vel_x_cut[j_] != -1:
+            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and r_upper[j_] != -999:
+                # and fr_vel_x_cut[j_] != -1:
                 fr_single[j_] = True
 
             if fl_single[j_] and fr_single[j_]:
@@ -265,31 +265,34 @@ class Metrics:
     @staticmethod
     def crop_start_end_phases(gait_phases_):
         #  find first occurrence of single support phase
-        l = gait_phases_.fl_single.idxmax() - 1
-        r = gait_phases_.fr_single.idxmax() - 1
-        start_ds_end = min(l, r)
+        left = gait_phases_.fl_single.idxmax() - 1
+        right = gait_phases_.fr_single.idxmax() - 1
+        start_ds_end = min(left, right)
         #  find last occurrence of single support phase
-        s = gait_phases_.fl_single
-        l = len(s) - next(idx for idx, val in enumerate(s[::-1], 1) if val) + 1
-        s = gait_phases_.fr_single
-        r = len(s) - next(idx for idx, val in enumerate(s[::-1], 1) if val) + 1
-        end_ds_start = max(l, r)
+        single = gait_phases_.fl_single
+        left = len(single) - next(idx for idx, val in enumerate(single[::-1], 1) if val) + 1
+        single = gait_phases_.fr_single
+        right = len(single) - next(idx for idx, val in enumerate(single[::-1], 1) if val) + 1
+        end_ds_start = max(left, right)
         return start_ds_end, end_ds_start
 
     @staticmethod
     def crop_start_end_halfstep(gait_phases_, start_ds_end_, end_ds_start_):
         #  is left or right leg the first moving leg. find the last contact of this leg
+        r_f, r_b = -1, -1
         if gait_phases_.fl_single.loc[start_ds_end_ + 1]:
-            remove = gait_phases_.fl_single[:start_ds_end_]
+            r_f = gait_phases_.fl_single[:start_ds_end_]
         elif gait_phases_.fr_single.loc[start_ds_end_ + 1]:
-            remove = gait_phases_.fr_single[start_ds_end_ + 1:]
-        remove_front = remove.idxmin() - 1
+            r_f = gait_phases_.fr_single[start_ds_end_ + 1:]
         # apply the same logic but go backwards
         if gait_phases_.fl_single.loc[end_ds_start_ - 1]:
-            remove = gait_phases_.fl_single.loc[end_ds_start_ - 1:0:-1]
+            r_b = gait_phases_.fl_single.loc[end_ds_start_ - 1:0:-1]
         elif gait_phases_.fr_single.loc[end_ds_start_ - 1]:
-            remove = gait_phases_.fr_single.loc[end_ds_start_ - 1:0:-1]
-        remove_back = remove.idxmin()
+            r_b = gait_phases_.fr_single.loc[end_ds_start_ - 1:0:-1]
+        if r_f or r_b == -1:
+            return False
+        remove_front = r_f.idxmin() - 1
+        remove_back = r_b.idxmin()
         return remove_front, remove_back
 
     def create_metric_dataframe(self):
@@ -499,15 +502,15 @@ class Metrics:
             if foot2.id is not None:
                 fc_vel = fc_vel + foot2.omega_v
             metrics.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
-                                     'fc_vel_lin_z']] = fc_vel
+                             'fc_vel_lin_z']] = fc_vel
             # ----------- #
 
             # --- VARIOUS --- #
             metrics.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = cos
             metrics.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
-                                     'fc_vel_lin_z']] = foot1.omega_v  # in ds we just use the left leg
+                             'fc_vel_lin_z']] = foot1.omega_v  # in ds we just use the left leg
             metrics.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y',
-                                     'base_orientation_error_z']] = self.calc_base_orientation_error(q)
+                             'base_orientation_error_z']] = self.calc_base_orientation_error(q)
             # --------------- #
 
         return metrics

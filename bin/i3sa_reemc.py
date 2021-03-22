@@ -23,7 +23,7 @@ if __name__ == '__main__':
     impact = exp.get_impact(gait_phases)
 
     indicators = indicators.Indicators(experiment, metrics)
-    indicators.hello()
+    indicators.ping()
 
     # export.export_scalar(impact, OUTPUT + 'impact.yaml')
     # export.export_scalar(distance_traveled, OUTPUT + 'distance_traveled.yaml')
