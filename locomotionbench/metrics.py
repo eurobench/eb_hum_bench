@@ -140,7 +140,9 @@ class Metrics:
         '''
 
         self.gait_segments = self.gait_segmentation()
-        self.indicators = self.create_indicator_dataframe()
+
+    def get_gait_segments(self):
+        return self.gait_segments
 
     def body_map_sorted(self):
         orig = self.model.mBodyNameMap
@@ -232,7 +234,7 @@ class Metrics:
         fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
         fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
 
-        segmentation = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
+        phases = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
         fl_single = np.zeros(len(self.lead_time), dtype=bool)
         fr_single = np.zeros(len(self.lead_time), dtype=bool)
         double = np.zeros(len(self.lead_time), dtype=bool)
@@ -253,46 +255,48 @@ class Metrics:
             elif not fl_single[j_] and not fr_single[j_]:
                 double[j_] = True
 
-        segmentation['fl_single'] = fl_single
-        segmentation['fr_single'] = fr_single
-        segmentation['double'] = double
+        phases['fl_single'] = fl_single
+        phases['fr_single'] = fr_single
+        phases['double'] = double
 
-        return segmentation
+        return phases
 
-    def crop_start_end_phases(self):
+    @staticmethod
+    def crop_start_end_phases(gait_phases_):
         #  find first occurrence of single support phase
-        l = self.gait_segments.fl_single.idxmax() - 1
-        r = self.gait_segments.fr_single.idxmax() - 1
+        l = gait_phases_.fl_single.idxmax() - 1
+        r = gait_phases_.fr_single.idxmax() - 1
         start_ds_end = min(l, r)
         #  find last occurrence of single support phase
-        s = self.gait_segments.fl_single
+        s = gait_phases_.fl_single
         l = len(s) - next(idx for idx, val in enumerate(s[::-1], 1) if val) + 1
-        s = self.gait_segments.fr_single
+        s = gait_phases_.fr_single
         r = len(s) - next(idx for idx, val in enumerate(s[::-1], 1) if val) + 1
         end_ds_start = max(l, r)
         return start_ds_end, end_ds_start
 
-    def crop_start_end_halfstep(self, start_ds_end_, end_ds_start_):
+    @staticmethod
+    def crop_start_end_halfstep(gait_phases_, start_ds_end_, end_ds_start_):
         #  is left or right leg the first moving leg. find the last contact of this leg
-        if self.gait_segments.fl_single.loc[start_ds_end_ + 1]:
-            remove = self.gait_segments.fl_single[:start_ds_end_]
-        elif self.gait_segments.fr_single.loc[start_ds_end_ + 1]:
-            remove = self.gait_segments.fr_single[start_ds_end_ + 1:]
+        if gait_phases_.fl_single.loc[start_ds_end_ + 1]:
+            remove = gait_phases_.fl_single[:start_ds_end_]
+        elif gait_phases_.fr_single.loc[start_ds_end_ + 1]:
+            remove = gait_phases_.fr_single[start_ds_end_ + 1:]
         remove_front = remove.idxmin() - 1
         # apply the same logic but go backwards
-        if self.gait_segments.fl_single.loc[end_ds_start_ - 1]:
-            remove = self.gait_segments.fl_single.loc[end_ds_start_ - 1:0:-1]
-        elif self.gait_segments.fr_single.loc[end_ds_start_ - 1]:
-            remove = self.gait_segments.fr_single.loc[end_ds_start_ - 1:0:-1]
+        if gait_phases_.fl_single.loc[end_ds_start_ - 1]:
+            remove = gait_phases_.fl_single.loc[end_ds_start_ - 1:0:-1]
+        elif gait_phases_.fr_single.loc[end_ds_start_ - 1]:
+            remove = gait_phases_.fr_single.loc[end_ds_start_ - 1:0:-1]
         remove_back = remove.idxmin()
         return remove_front, remove_back
 
     @staticmethod
-    def create_indicator_dataframe(indicators=None):
+    def create_metric_dataframe(metrics_=None):
         """
-        :param indicators:
+        :param metrics_:
         :return:
-        Accept a list of indicators and prepare an empty pandas dataframe to store all dof for all requested indidcators
+        Accept a list of metrics_ and prepare an empty pandas dataframe to store all dof for all requested indidcators
         """
 
         """
@@ -325,48 +329,50 @@ class Metrics:
         dist_cap_bos_r:
         """
         concat = [['time']]
-        if not indicators:
-            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact',
+        if not metrics_:
+            metrics_ = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact',
                           'fc_vel', 'grf']
 
-        if 'com' in indicators:
+        if 'com' in metrics_:
             columns = ['com_x', 'com_y', 'com_z', 'com_vel_x', 'com_vel_y', 'com_vel_z', 'com_acc_x', 'com_acc_y',
                        'com_acc_z']
             concat.append(columns)
-        if 'cos' in indicators:  # center of support location
+        if 'cos' in metrics_:  # center of support location
             columns = ['cos_x', 'cos_y', 'cos_z']
             concat.append(columns)
-        if 'w_c' in indicators:  # normalized angular momentum
+        if 'w_c' in metrics_:  # normalized angular momentum
             columns = ['w_c_x', 'w_c_y', 'w_c_z']
             concat.append(columns)
-        if 'h_c' in indicators:  # normalized angular momentum at com
+        if 'h_c' in metrics_:  # normalized angular momentum at com
             columns = ['h_c_x', 'h_c_y', 'h_c_z']
             concat.append(columns)
-        if 'zmp' in indicators:
+        if 'zmp' in metrics_:
             columns = ['zmp_x', 'zmp_y', 'zmp_z', 'dist_zmp_bos']
             concat.append(columns)
-        if 'cop' in indicators:
+        if 'cop' in metrics_:
             columns = ['cop_x', 'cop_y', 'cop_z', 'dist_cop_bos']
             concat.append(columns)
-        if 'fpe' in indicators:
+        if 'fpe' in metrics_:
             columns = ['fpe_x', 'fpe_y', 'fpe_z', 'dist_fpe_bos', 'fpe_err']
             concat.append(columns)
-        if 'cap' in indicators:
+        if 'cap' in metrics_:
             columns = ['cap_x', 'cap_y', 'cap_z', 'dist_cap_bos']
             concat.append(columns)
-        if 'base' in indicators:
+        if 'base' in metrics_:
             columns = ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']
             concat.append(columns)
-        if 'distance' in indicators:
-            columns = ['distance_covered', 'n_steps', 'normalized_dist_steps']
-            concat.append(columns)
-        if 'impact' in indicators:
-            columns = ['impact']
-            concat.append(columns)
-        if 'fc_vel' in indicators:
+        if 'distance' in metrics_:
+            pass
+            # columns = ['distance_covered', 'n_steps', 'normalized_dist_steps']
+            # concat.append(columns)
+        if 'impact' in metrics_:
+            pass
+            # columns = ['impact']
+            # concat.append(columns)
+        if 'fc_vel' in metrics_:
             columns = ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y', 'fc_vel_lin_z']
             concat.append(columns)
-        if 'grf' in indicators:
+        if 'grf' in metrics_:
             columns = ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']
             concat.append(columns)
 
@@ -374,29 +380,30 @@ class Metrics:
 
         return pd.DataFrame(columns=[item for sublist in concat for item in sublist])
 
-    def calc_metrics(self):
+    def calc_metrics(self, gait_phases_):
         """
-        Calculate and return a set of indicators which were previously requested
-        :return: self.indicators
+        Calculate and return a set of metrics which were previously requested
+        :return: metrics
         """
 
+        metrics = self.create_metric_dataframe()
         zmp = np.zeros(3)
         balance_tk = rbdl.BalanceToolkit()
         omega_small = 1e-6
         fpe_output = rbdl.FootPlacementEstimatorInfo()
 
-        left_single_support = self.gait_segments.query('fl_single == True').index.tolist()
-        right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
-        double_support = self.gait_segments.query('double == True').index.tolist()
+        left_single_support = gait_phases_.query('fl_single == True').index.tolist()
+        right_single_support = gait_phases_.query('fr_single == True').index.tolist()
+        double_support = gait_phases_.query('double == True').index.tolist()
 
         # TODO: control cropping in yaml settings
         # crop either double support phases at beginning and end or in addition also crop first and last half step
-        start_ds_end, end_ds_start = self.crop_start_end_phases()
-        remove_front, remove_back = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
+        start_ds_end, end_ds_start = self.crop_start_end_phases(gait_phases_)
+        remove_front, remove_back = self.crop_start_end_halfstep(gait_phases_, start_ds_end, end_ds_start)
         if remove_front:
-            self.indicators['time'] = self.lead_time[remove_front + 1: remove_back + 1] - self.lead_time.loc[remove_front + 1]
+            metrics['time'] = self.lead_time[remove_front + 1: remove_back + 1] - self.lead_time.loc[remove_front + 1]
         else:
-            self.indicators['time'] = self.lead_time
+            metrics['time'] = self.lead_time
 
         for i_, value in self.lead_time.items():
             if i_ <= remove_front:
@@ -416,7 +423,7 @@ class Metrics:
                              self.foot_r_c, np.array(self.ftl.loc[i_, ['force_x', 'force_y', 'force_z']]),
                              np.array(self.ftl.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
                 cos = foot1.cos
-                self.gait_segments.loc[i_, ['fl_obj']] = foot1
+                gait_phases_.loc[i_, ['fl_obj']] = foot1
                 foot2 = Foot()
 
             # are we looking at a single support phase (or double): prepare foot right contact
@@ -426,7 +433,7 @@ class Metrics:
                              self.foot_r_c, np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
                              np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
                 cos = foot1.cos
-                self.gait_segments.loc[i_, ['fr_obj']] = foot1
+                gait_phases_.loc[i_, ['fr_obj']] = foot1
                 foot2 = Foot()
 
             # are we looking at a single support phase (or double): prepare foot contact of a support polygon for both feet
@@ -438,8 +445,8 @@ class Metrics:
                              self.foot_r_c, np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
                              np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
                 cos = np.multiply(1 / 2, (foot1.cos + foot2.cos))
-                self.gait_segments.loc[i_, ['fl_obj']] = foot1
-                self.gait_segments.loc[i_, ['fr_obj']] = foot2
+                gait_phases_.loc[i_, ['fl_obj']] = foot1
+                gait_phases_.loc[i_, ['fr_obj']] = foot2
             else:  # no contact detected
                 print('error at: ', i_)
                 continue
@@ -447,10 +454,10 @@ class Metrics:
             # --- NORMALIZED ANGULAR MOMENTUM ABOUT COM --- #
             r_c, h_c, v_c, a_c, model_mass = self.calc_com(q, qdot, qddot)
             h_cn = h_c / (self.mass * self.leg_length ** 2)
-            self.indicators.loc[i_, ['com_x', 'com_y', 'com_z']] = r_c
-            self.indicators.loc[i_, ['com_vel_x', 'com_vel_y', 'com_vel_z']] = v_c
-            self.indicators.loc[i_, ['com_acc_x', 'com_acc_y', 'com_acc_z']] = a_c
-            self.indicators.loc[i_, ['h_c_x', 'h_c_y', 'h_c_z']] = h_cn
+            metrics.loc[i_, ['com_x', 'com_y', 'com_z']] = r_c
+            metrics.loc[i_, ['com_vel_x', 'com_vel_y', 'com_vel_z']] = v_c
+            metrics.loc[i_, ['com_acc_x', 'com_acc_y', 'com_acc_z']] = a_c
+            metrics.loc[i_, ['h_c_x', 'h_c_y', 'h_c_z']] = h_cn
             # -------------------------------------------- #
 
             # --- KINETIC ENERGY --- #
@@ -461,52 +468,52 @@ class Metrics:
             balance_tk.CalculateFootPlacementEstimator(self.model, q, qdot, cos, np.array([0., 0., 1.]),
                                                        fpe_output, omega_small, False, False)
             fpe = fpe_output.r0F0
-            self.indicators.loc[i_, ['fpe_x', 'fpe_y', 'fpe_z']] = fpe
-            self.indicators.loc[i_, ['fpe_err']] = fpe_output.projectionError
+            metrics.loc[i_, ['fpe_x', 'fpe_y', 'fpe_z']] = fpe
+            metrics.loc[i_, ['fpe_err']] = fpe_output.projectionError
             # ----------- #
 
             # --- CAP --- #
             # requires balance_tk from fpe
             cap = self.calc_cap(fpe_output.u, fpe_output.h, fpe_output.v0C0u, fpe_output.r0P0)
-            self.indicators.loc[i_, ['cap_x', 'cap_y', 'cap_z']] = cap
+            metrics.loc[i_, ['cap_x', 'cap_y', 'cap_z']] = cap
             # ----------- #
 
             # --- COP --- #
             cop = calc_cop(foot1.cos, foot1.forces, foot1.moments, foot2.cos, foot2.forces, foot2.moments)
-            self.indicators.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
+            metrics.loc[i_, ['cop_x', 'cop_y', 'cop_z']] = cop
             # ----------- #
 
             # --- ZMP --- #
             rbdl.CalcZeroMomentPoint(self.model, q, qdot, qddot, zmp, np.array([0., 0., 1.]), np.array([0., 0., 1.]),
                                      False)
-            self.indicators.loc[i_, ['zmp_x', 'zmp_y', 'zmp_z']] = zmp
+            metrics.loc[i_, ['zmp_x', 'zmp_y', 'zmp_z']] = zmp
             # ----------- #
 
             # --- DISTANCES TO BOS --- #
-            self.indicators.loc[i_, ['dist_zmp_bos']] = self.distance_to_support_polygon(q, zmp, foot1, foot2)
-            self.indicators.loc[i_, ['dist_fpe_bos']] = self.distance_to_support_polygon(q, fpe, foot1, foot2)
-            self.indicators.loc[i_, ['dist_cap_bos']] = self.distance_to_support_polygon(q, cap, foot1, foot2)
+            metrics.loc[i_, ['dist_zmp_bos']] = self.distance_to_support_polygon(q, zmp, foot1, foot2)
+            metrics.loc[i_, ['dist_fpe_bos']] = self.distance_to_support_polygon(q, fpe, foot1, foot2)
+            metrics.loc[i_, ['dist_cap_bos']] = self.distance_to_support_polygon(q, cap, foot1, foot2)
             # ------------------------ #
 
             # --- GRF --- #
             grf = calc_grf(f_1=foot1.forces, m_1=foot1.moments, f_2=foot2.forces, m_2=foot2.moments)
-            self.indicators.loc[i_, ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']] = grf
+            metrics.loc[i_, ['f_mu_x', 'f_mu_y', 'f_dx', 'f_dy']] = grf
             fc_vel = foot1.omega_v
             if foot2.id is not None:
                 fc_vel = fc_vel + foot2.omega_v
-            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
+            metrics.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
                                      'fc_vel_lin_z']] = fc_vel
             # ----------- #
 
             # --- VARIOUS --- #
-            self.indicators.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = cos
-            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
+            metrics.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = cos
+            metrics.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
                                      'fc_vel_lin_z']] = foot1.omega_v  # in ds we just use the left leg
-            self.indicators.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y',
+            metrics.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y',
                                      'base_orientation_error_z']] = self.calc_base_orientation_error(q)
             # --------------- #
 
-        return self.indicators
+        return metrics
 
     def calc_com(self, q_, qdot_, qddot_):
         r_c_ = np.zeros(3)
@@ -605,11 +612,11 @@ class Metrics:
         error = sp.SO3.log(s_error)
         return error
 
-    def get_n_steps_normalized_by_leg_distance(self):
+    def get_n_steps_normalized_by_leg_distance(self, gait_phases_):
         n_steps = 0
-        left_single_support = self.gait_segments.query('fl_single == True').index.tolist()
-        right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
-        double_support = self.gait_segments.query('double == True').index.tolist()
+        left_single_support = gait_phases_.query('fl_single == True').index.tolist()
+        right_single_support = gait_phases_.query('fr_single == True').index.tolist()
+        double_support = gait_phases_.query('double == True').index.tolist()
         support_type = 'DS'
         prev_p = np.array([0., 0., 0.])
         distance_traveled = 0.0
@@ -636,11 +643,11 @@ class Metrics:
                 support_type = 'RS'
         return distance_traveled, n_steps, distance_traveled / (n_steps * self.leg_length)
 
-    def get_impact(self):
+    def get_impact(self, gait_phases_):
         support_type = 'DS'
-        left_single_support = self.gait_segments.query('fl_single == True').index.tolist()
-        right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
-        double_support = self.gait_segments.query('double == True').index.tolist()
+        left_single_support = gait_phases_.query('fl_single == True').index.tolist()
+        right_single_support = gait_phases_.query('fr_single == True').index.tolist()
+        double_support = gait_phases_.query('double == True').index.tolist()
         fl_ft = np.array(self.ftl['force_z'])
         fr_ft = np.array(self.ftr['force_z'])
         iterations = 0
