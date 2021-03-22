@@ -17,6 +17,7 @@ from shapely.geometry.polygon import Polygon
 from shapely.geometry import MultiPoint
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
+from csaps import csaps
 
 
 def calc_cop(p_1, f_1, m_1, p_2=None, f_2=None, m_2=None):
@@ -33,6 +34,7 @@ def calc_cop(p_1, f_1, m_1, p_2=None, f_2=None, m_2=None):
         cop[2] = p_2[2]
     return cop
 
+
 def calc_grf(f_1, m_1, f_2=None, m_2=None):
     grf = np.zeros(4)
     if f_2 is None and m_2 is None:
@@ -46,6 +48,7 @@ def calc_grf(f_1, m_1, f_2=None, m_2=None):
         grf[2] = (abs(m_1[0]) / f_1[2]) + (abs(m_2[0]) / f_2[2])
         grf[3] = (abs(m_1[1]) / f_1[2]) + (abs(m_2[1]) / f_2[2])
     return grf
+
 
 def distance_point_vector(p1_, p2_, p3_):
     p1_ = np.array(p1_)
@@ -157,13 +160,17 @@ class Metrics:
         fl_pos, fr_pos, fl_vel, fr_vel = [], [], [], []
         l_upper = np.zeros(len(self.lead_time))
         r_upper = np.zeros(len(self.lead_time))
-
+        smooth = 0.5
         # TODO: parameterize weight threshold
 
-        up = -(self.mass * 0.8 * self.g[2])
+        up = -(self.mass * 0.2 * self.g[2])
 
         fl_ft = np.array(self.ftl['force_z'])
         fr_ft = np.array(self.ftr['force_z'])
+        fl_ft_spl = csaps(self.lead_time, np.array(self.ftl['force_z']), smooth=0.99)
+        fl_ft_smooth = fl_ft_spl(self.lead_time)
+        fr_ft_spl = csaps(self.lead_time, np.array(self.ftr['force_z']), smooth=0.99)
+        fr_ft_smooth = fr_ft_spl(self.lead_time)
 
         for i_, value in self.lead_time.items():
 
@@ -191,15 +198,15 @@ class Metrics:
             fr_vel.append(foot_velocity_r)
 
             # Identify gait phase based on the force torque acting on the the feet
-            if fl_ft[i_] > up:
+            if fl_ft_smooth[i_] > up:
                 l_upper[i_] = fl_ft[i_]
             else:
-                l_upper[i_] = -1
+                l_upper[i_] = -999
 
-            if fr_ft[i_] > up:
+            if fr_ft_smooth[i_] > up:
                 r_upper[i_] = fr_ft[i_]
             else:
-                r_upper[i_] = -1
+                r_upper[i_] = -999
 
         # TODO: parameterize cut off parameters
 
@@ -208,8 +215,8 @@ class Metrics:
         fr_pos_x = np.array([row[0] for row in fr_pos])
         fl_pos_x_dot = np.gradient(fl_pos_x, np.array(self.lead_time))
         fr_pos_x_dot = np.gradient(fr_pos_x, np.array(self.lead_time))
-        fl_pos_x_dot_cut = np.array([-1 if x >= 0.1 else x for x in fl_pos_x_dot])
-        fr_pos_x_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_x_dot])
+        fl_pos_x_dot_cut = np.array([-1 if x >= 0.2 else x for x in fl_pos_x_dot])
+        fr_pos_x_dot_cut = np.array([-1 if x >= 0.2 else x for x in fr_pos_x_dot])
 
         # Identify gait phase based on change of height of the feet
         fl_pos_z = np.array([row[2] for row in fl_pos])
@@ -231,45 +238,54 @@ class Metrics:
         double = np.zeros(len(self.lead_time), dtype=bool)
 
         for j_, value in self.lead_time.items():
-            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and fl_ft[
-                j_] != -1:  # and fl_vel_x_cut[j_] != -1
+            if fl_pos_x_dot_cut[j_] != -1 and fl_pos_z_dot_cut[j_] != -1 and l_upper[
+                j_] != -999:  # and fl_vel_x_cut[j_] != -1
                 fl_single[j_] = True
 
-            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and fr_ft[
-                j_] != -1:  # and fr_vel_x_cut[j_] != -1:
+            if fr_pos_x_dot_cut[j_] != -1 and fr_pos_z_dot_cut[j_] != -1 and r_upper[
+                j_] != -999:  # and fr_vel_x_cut[j_] != -1:
                 fr_single[j_] = True
 
             if fl_single[j_] and fr_single[j_]:
                 double[j_] = True
                 fl_single[j_] = False
                 fr_single[j_] = False
-
-        # for k_ in range(len(self.lead_time)):
-        #     if fl_single[k_] == True:
-        #         lcolor_ = 'r'
-        #     elif fl_single[k_] == 0:
-        #         lcolor_ = 'b'
-        #     else:
-        #         lcolor_ = 'grey'
-        #     if fr_single[k_] == True:
-        #         rcolor_ = 'r'
-        #     elif fr_single[k_] == 0:
-        #         rcolor_ = 'b'
-        #     else:
-        #         rcolor_ = 'grey'
-        #     if double[k_] == True:
-        #         rcolor_ = 'g'
-        #         lcolor_ = 'g'
-        #
-        #     plt.scatter(np.array(self.lead_time)[k_], fl_pos_x[k_], color=lcolor_, marker='x')
-        #     plt.scatter(np.array(self.lead_time)[k_], fr_pos_x[k_], color=rcolor_, marker='x')
-        # plt.show()
+            elif not fl_single[j_] and not fr_single[j_]:
+                double[j_] = True
 
         segmentation['fl_single'] = fl_single
         segmentation['fr_single'] = fr_single
         segmentation['double'] = double
 
         return segmentation
+
+    def crop_start_end_phases(self):
+        #  find first occurrence of single support phase
+        l = self.gait_segments.fl_single.idxmax() - 1
+        r = self.gait_segments.fr_single.idxmax() - 1
+        start_ds_end = min(l, r)
+        #  find last occurrence of single support phase
+        s = self.gait_segments.fl_single
+        l = len(s) - next(idx for idx, val in enumerate(s[::-1], 1) if val) + 1
+        s = self.gait_segments.fr_single
+        r = len(s) - next(idx for idx, val in enumerate(s[::-1], 1) if val) + 1
+        end_ds_start = max(l, r)
+        return start_ds_end, end_ds_start
+
+    def crop_start_end_halfstep(self, start_ds_end_, end_ds_start_):
+        #  is left or right leg the first moving leg. find the last contact of this leg
+        if self.gait_segments.fl_single.loc[start_ds_end_ + 1]:
+            remove = self.gait_segments.fl_single[:start_ds_end_]
+        elif self.gait_segments.fr_single.loc[start_ds_end_ + 1]:
+            remove = self.gait_segments.fr_single[start_ds_end_ + 1:]
+        remove_front = remove.idxmin() - 1
+        # apply the same logic but go backwards
+        if self.gait_segments.fl_single.loc[end_ds_start_ - 1]:
+            remove = self.gait_segments.fl_single.loc[end_ds_start_ - 1:0:-1]
+        elif self.gait_segments.fr_single.loc[end_ds_start_ - 1]:
+            remove = self.gait_segments.fr_single.loc[end_ds_start_ - 1:0:-1]
+        remove_back = remove.idxmin()
+        return remove_front, remove_back
 
     @staticmethod
     def create_indicator_dataframe(indicators=None):
@@ -310,7 +326,8 @@ class Metrics:
         """
         concat = [['time']]
         if not indicators:
-            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact', 'fc_vel', 'grf']
+            indicators = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact',
+                          'fc_vel', 'grf']
 
         if 'com' in indicators:
             columns = ['com_x', 'com_y', 'com_z', 'com_vel_x', 'com_vel_y', 'com_vel_z', 'com_acc_x', 'com_acc_y',
@@ -363,9 +380,7 @@ class Metrics:
         :return: self.indicators
         """
 
-        self.indicators['time'] = self.lead_time
         zmp = np.zeros(3)
-
         balance_tk = rbdl.BalanceToolkit()
         omega_small = 1e-6
         fpe_output = rbdl.FootPlacementEstimatorInfo()
@@ -374,7 +389,19 @@ class Metrics:
         right_single_support = self.gait_segments.query('fr_single == True').index.tolist()
         double_support = self.gait_segments.query('double == True').index.tolist()
 
+        start_ds_end, end_ds_start = self.crop_start_end_phases()
+        remove_front, remove_back = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
+        if remove_front:
+            cut_off_time = self.lead_time.loc[remove_front + 1]
+            self.indicators['time'] = self.lead_time[remove_front + 1 : remove_back - 1]
+        else:
+            self.indicators['time'] = self.lead_time
+
         for i_, value in self.lead_time.items():
+            if i_ <= remove_front:
+                continue
+            if i_ >= remove_back:
+                continue
 
             q = np.array(self.pos.loc[i_].drop('time'))
             qdot = np.array(self.vel.loc[i_].drop('time'))
@@ -393,6 +420,7 @@ class Metrics:
 
             # are we looking at a single support phase (or double): prepare foot right contact
             elif i_ in right_single_support:
+
                 foot1 = Foot(self.model, self.body_map.index(self.r_foot) + 1, self.relative_sole_pos, self.sole_r,
                              self.foot_r_c, np.array(self.ftr.loc[i_, ['force_x', 'force_y', 'force_z']]),
                              np.array(self.ftr.loc[i_, ['torque_x', 'torque_y', 'torque_z']]), q, qdot)
@@ -465,15 +493,18 @@ class Metrics:
             fc_vel = foot1.omega_v
             if foot2.id is not None:
                 fc_vel = fc_vel + foot2.omega_v
-            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y', 'fc_vel_lin_z']] = fc_vel
+            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
+                                     'fc_vel_lin_z']] = fc_vel
             # ----------- #
 
             # --- VARIOUS --- #
             self.indicators.loc[i_, ['cos_x', 'cos_y', 'cos_z']] = cos
-            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y', 'fc_vel_lin_z']] = foot1.omega_v  # in ds we just use the left leg
-            self.indicators.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y', 'base_orientation_error_z']] = self.calc_base_orientation_error(q)
+            self.indicators.loc[i_, ['fc_vel_ang_x', 'fc_vel_ang_y', 'fc_vel_ang_z', 'fc_vel_lin_x', 'fc_vel_lin_y',
+                                     'fc_vel_lin_z']] = foot1.omega_v  # in ds we just use the left leg
+            self.indicators.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y',
+                                     'base_orientation_error_z']] = self.calc_base_orientation_error(q)
             # --------------- #
-
+        plt.show()
         return self.indicators
 
     def calc_com(self, q_, qdot_, qddot_):
@@ -588,14 +619,16 @@ class Metrics:
                 support_type = 'DS'
             elif i_ in left_single_support:
                 if support_type == 'LS':
-                    p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1, np.array([0., 0., 0.]))
+                    p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.l_foot) + 1,
+                                                       np.array([0., 0., 0.]))
                     distance_traveled += p[0] - prev_p[0]
                     prev_p = p
                     n_steps += 1
                 support_type = 'LS'
             elif i_ in right_single_support:
                 if support_type == 'RS':
-                    p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1, np.array([0., 0., 0.]))
+                    p = rbdl.CalcBodyToBaseCoordinates(self.model, q, self.body_map.index(self.r_foot) + 1,
+                                                       np.array([0., 0., 0.]))
                     distance_traveled += p[0] - prev_p[0]
                     prev_p = p
                     n_steps += 1
