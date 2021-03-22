@@ -86,6 +86,7 @@ class Metrics:
     def __init__(self, robot_, exp_):
         path = exp_['inputdir'] + '/' + exp_['project'] + '/' + exp_['run'] + '/' + exp_['trial'] + '/'
         model = robot_['modelpath'] + '/' + robot_['robotmodel']
+        self.requested_indicators = exp_['indicators']
         self.base_link = robot_['base_link']
         self.g = exp_['gravity']
         self.l_foot = robot_['foot_l']
@@ -231,8 +232,8 @@ class Metrics:
         # Identify gait phase based on the velocity of feet
         fl_vel_x = np.array([row[0] for row in fl_vel])
         fr_vel_x = np.array([row[0] for row in fr_vel])
-        fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
-        fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
+        # fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
+        # fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
 
         phases = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
         fl_single = np.zeros(len(self.lead_time), dtype=bool)
@@ -291,10 +292,9 @@ class Metrics:
         remove_back = remove.idxmin()
         return remove_front, remove_back
 
-    @staticmethod
-    def create_metric_dataframe(metrics_=None):
+    def create_metric_dataframe(self):
+        metrics_ = self.requested_indicators
         """
-        :param metrics_:
         :return:
         Accept a list of metrics_ and prepare an empty pandas dataframe to store all dof for all requested indidcators
         """
@@ -329,9 +329,6 @@ class Metrics:
         dist_cap_bos_r:
         """
         concat = [['time']]
-        if not metrics_:
-            metrics_ = ['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact',
-                          'fc_vel', 'grf']
 
         if 'com' in metrics_:
             columns = ['com_x', 'com_y', 'com_z', 'com_vel_x', 'com_vel_y', 'com_vel_z', 'com_acc_x', 'com_acc_y',
