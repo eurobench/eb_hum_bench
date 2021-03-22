@@ -22,8 +22,7 @@ if __name__ == '__main__':
     distance_traveled, n_steps, normalized_dist_steps = exp.get_n_steps_normalized_by_leg_distance(gait_phases)
     impact = exp.get_impact(gait_phases)
 
-    indicators = indicators.Indicators(experiment, metrics)
-    indicators.ping()
+    indicators = indicators.Indicators(experiment, metrics, gait_phases)
 
     # export.export_scalar(impact, OUTPUT + 'impact.yaml')
     # export.export_scalar(distance_traveled, OUTPUT + 'distance_traveled.yaml')

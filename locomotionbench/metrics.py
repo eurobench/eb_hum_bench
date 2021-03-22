@@ -279,17 +279,18 @@ class Metrics:
     @staticmethod
     def crop_start_end_halfstep(gait_phases_, start_ds_end_, end_ds_start_):
         #  is left or right leg the first moving leg. find the last contact of this leg
-        r_f, r_b = -1, -1
         if gait_phases_.fl_single.loc[start_ds_end_ + 1]:
             r_f = gait_phases_.fl_single[:start_ds_end_]
         elif gait_phases_.fr_single.loc[start_ds_end_ + 1]:
             r_f = gait_phases_.fr_single[start_ds_end_ + 1:]
+        else:
+            return False
         # apply the same logic but go backwards
         if gait_phases_.fl_single.loc[end_ds_start_ - 1]:
             r_b = gait_phases_.fl_single.loc[end_ds_start_ - 1:0:-1]
         elif gait_phases_.fr_single.loc[end_ds_start_ - 1]:
             r_b = gait_phases_.fr_single.loc[end_ds_start_ - 1:0:-1]
-        if r_f or r_b == -1:
+        else:
             return False
         remove_front = r_f.idxmin() - 1
         remove_back = r_b.idxmin()
