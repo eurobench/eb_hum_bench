@@ -47,6 +47,7 @@ RUN pip3 install scipy
 RUN pip3 install Shapely
 RUN pip3 install csaps
 RUN pip3 install matplotlib
+RUN pip3 install sophuspy
 
 COPY *.py /home/pi_runner/
 # set the user as owner of the copied files.
