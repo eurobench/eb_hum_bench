@@ -1,5 +1,5 @@
 import yaml
-from locomotionbench import utility, metrics, indicators
+from locomotionbench import experiment_factory, utility, metrics, indicators
 import matplotlib.pyplot as plt
 
 # TODO: Use arguments from cli. not implemented for debugging purposes
@@ -14,6 +14,8 @@ if __name__ == '__main__':
     export = utility.PIExporter()
     experiment = yaml.load(e_yaml, Loader=yaml.FullLoader)
     robot = yaml.load(r_yaml, Loader=yaml.FullLoader)
+
+    factory = experiment_factory.ExperimentFactory(experiment, robot)
 
     exp = metrics.Metrics(robot, experiment)
     gait_phases = exp.get_gait_segments()

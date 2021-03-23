@@ -5,7 +5,7 @@ inputdir: 'input'
 # Project Folder containing the following folder structure
 project: '2021_02_19'
 # Run in Project Folder containing the different steps of difficulty
-run: '14'
+run: [16,14]
 # Trial folder(s) containing the repetitions of each difficulty
 trial: [1, 2, 3]
 # Requested indicators to be calculated by the tool
