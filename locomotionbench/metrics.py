@@ -139,8 +139,9 @@ class Metrics:
            |               |
            y1_____________y2
         '''
-
+        print('Segmentation of gait')
         self.gait_segments = self.gait_segmentation()
+        print('finished.')
 
     def get_gait_segments(self):
         return self.gait_segments
@@ -386,7 +387,7 @@ class Metrics:
         Calculate and return a set of metrics which were previously requested
         :return: metrics
         """
-
+        print('Calculate Metrics')
         metrics = self.create_metric_dataframe()
         zmp = np.zeros(3)
         balance_tk = rbdl.BalanceToolkit()
@@ -513,7 +514,7 @@ class Metrics:
             metrics.loc[i_, ['base_orientation_error_x', 'base_orientation_error_y',
                              'base_orientation_error_z']] = self.calc_base_orientation_error(q)
             # --------------- #
-
+        print('finished.')
         return metrics
 
     def calc_com(self, q_, qdot_, qddot_):

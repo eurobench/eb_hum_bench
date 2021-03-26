@@ -1,4 +1,4 @@
-= PI_locomotion
+= Performance Indicator calculation for periodic walking motions
 
 image::https://img.shields.io/badge/License-BSD%202--Clause-blue.svg[link=https://opensource.org/licenses/BSD-2-Clause]
 Copyright Felix Aller 2020
@@ -6,10 +6,39 @@ Copyright Felix Aller 2020
 This is a routine to calculate various performance indicators based on metrics from literature for periodic walking motions on humanoid robots.
 It is prepared to be used within the Eurobench Benchmarking Software.
 
+The example data was obtained by executing the `I3SA - Increased Step Size Stability Assessment` protocol with the humanoid robot REEM-C by PAL Robotics.
 
-== Installation
 
-tba
+== Execution
+
+To initiate the calculation run:
+[source]
+python3 bin/i3sa.py -r bin/conf/robot.yaml -e bin/conf/experiment.yaml
+
+from the working directory.
+The current output of metrics will be written to individual `.yaml` files in the `bin/output` directory.
+
+The configuration of the calculation routine is done in the two `.yaml` configuration files `robot.yaml` and
+`experiment.yaml` in the `bin/conf/` directory
+['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact', 'fc_vel', 'grf']
+
+.Currently implemented metrics include:
+. Center of Mass (COM) Trajectory
+. Zero Moment Point (ZMP)
+. Center of Pressure (COP)
+. Capture Point (CAP)
+. Foot Placement Estimator (FPE)
+. Normalized Angular Momentum at COM
+. Base Orientation Error of the Pelvis
+. Travelled Distance
+. Ground Reaction Force (GRF) impact
+. Linear and angular velocity of the Feet
+. Base of Support (BOS) and distances of 1.-5. to BOS
+
+
+IMPORTANT: Some of this metrics require additional processing and normalization according to the individual gait phases. This is WIP. Currently not all `Metrics` are converted to `Performance Indicators` according to EUROBENCH standard.
+
+Currently exported PI include 8. 9. since they do not need to be further processed.
 
 == Acknowledgements
 [cols="^.^,.^", grid="none", frame="none"]
