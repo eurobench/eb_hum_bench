@@ -8,9 +8,43 @@ Copyright (C) 2020 Felix Aller
 Distributed under the  BSD-2-Clause License.
 """
 import numpy as np
+import sys
+import getopt
+import yaml
+import os
 
 
-class PIExporter:
+class IOHandler:
+
+    @staticmethod
+    def init(argv):
+        # if not argv:
+        #     argv = ['-r', 'conf/robot.yaml', '-e', 'conf/experiment.yaml']
+        r_yaml, e_yaml = IOHandler.parse_args(argv)
+        robot = yaml.load(r_yaml, Loader=yaml.FullLoader)
+        experiment = yaml.load(e_yaml, Loader=yaml.FullLoader)
+        return robot, experiment
+
+    @staticmethod
+    def parse_args(argv):
+        robot_config = ''
+        experiment_config = ''
+        try:
+            opts, args = getopt.getopt(argv, "hr:e:", ["rfile=", "efile="])
+        except getopt.GetoptError:
+            print('i3sa.py -r <robot_config> -e <experiment_config>')
+            sys.exit(2)
+        for opt, arg in opts:
+            if opt == '-h':
+                print('i3sa.py -r <robot_config> -e <experiment_config>')
+                sys.exit()
+            elif opt in ("-r", "--rfile"):
+                robot_config = os.path.abspath(arg)
+            elif opt in ("-e", "--efile"):
+                experiment_config = os.path.abspath(arg)
+        print('Robot config file "', robot_config)
+        print('Experimental config File "', experiment_config)
+        return open(robot_config), open(experiment_config)
 
     @staticmethod
     def write_file(filename, file_content):

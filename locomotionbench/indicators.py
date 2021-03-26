@@ -28,6 +28,31 @@ class Indicators:
         self.requested_indicators = exp_['indicators']
         self.a = np.arange(0, 1.01, 0.01)
 
-    def get_left_single_support_indices(self):
-        pass
+    def get_single_phases_per_ptype(self, ptype_):
+        """
+        Determine all phases correlating to a single phase type fl_single, fr_single, or double phase and return a
+        2d-array containing all indices of each of the single phases
+        :param ptype_: fl_single, fr_single, or double for phase identification
+        :return: single_phases 2d-list containing all indices wrt to a phase
+        """
+        phases = self.gait_phases.query(ptype_ + ' == True').index.values.tolist()
+        pmax = max(phases)
+        single_phases = []
+        buffer = []
+        prev = -999
+        for i_ in phases:
+            if prev + 1 != i_ and buffer or i_ == pmax:
+                single_phases.append(buffer)
+                buffer = []
+            buffer.append(i_)
+            prev = i_
+        return single_phases
 
+    def get_all_phases_per_ptype(self, ptype_):
+        """
+        Determine all phases correlating to a single phase type fl_single, fr_single, or double phase and return a
+        list containing all indices of the phase
+        :param ptype_: fl_single, fr_single, or double for phase identification
+        :return: list of all indices wrt to the phase
+        """
+        return self.gait_phases.query(ptype_ + ' == True').index.values.tolist()
