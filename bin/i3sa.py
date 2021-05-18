@@ -2,7 +2,7 @@ import sys
 from locomotionbench.utility import IOHandler
 from locomotionbench.experiment_factory import ExperimentFactory
 from locomotionbench.metrics import Metrics
-from locomotionbench.cap import Cap
+from locomotionbench import cap, cop, fpe
 from locomotionbench.environment import Robot, Experiment
 from locomotionbench.gait_segmentation import *
 from locomotionbench.indicators import Indicators
@@ -38,17 +38,31 @@ if __name__ == '__main__':
     output_folder_path = OUTPUT
     robot = Robot(temp_argv[0])
     experiment = Experiment(temp_argv[1:], robot.body_map)
+
+    print("Running Gait Phase Classification")
     robot.gait_segmentation(experiment, remove_ds=True, remove_hs=True)
     robot.create_contacts(experiment)
 
-    print("Running pi cap")
+    print("Running PI Center of Pressure")
     require = ['pos', 'vel']
-    cap = Cap(require, output_folder_path, robot, experiment)
+    cop = cop.Cop(require, output_folder_path, robot, experiment)
+    is_ok = cop.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+
+    print("Running PI Capture Point")
+    require = ['pos', 'vel']
+    cap = cap.Cap(require, output_folder_path, robot, experiment)
     is_ok = cap.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
-
+    print("Running PI Foot Placement Estimator")
+    require = ['pos', 'vel']
+    cap = fpe.Fpe(require, output_folder_path, robot, experiment)
+    is_ok = cap.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
 
     # #  Initialize experiment: load robot.yaml and experiment.yaml
     # robot, experiment = IOHandler.init(sys.argv[1:])
