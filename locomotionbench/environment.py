@@ -247,7 +247,6 @@ class FootContact:
         self.forces = force_
         self.moment = moment_
         self.rel_sole_pos = rel_sole_pos_
-
         # self.moments = moment_
         # if id_:
         #     self.cos, self.omega_v, self.corners_global = self.phase_dep_indicators(model_, q_, qdot_, rel_sole_pos_)
@@ -255,7 +254,8 @@ class FootContact:
         #     self.cos, self.omega_v, self.corners_global = None, None, None
 
     def get_cos(self, model_, q_,):
-        return rbdl.CalcBodyToBaseCoordinates(model_, q_, self.id, np.array(self.rel_sole_pos), True)
+        self.cos = rbdl.CalcBodyToBaseCoordinates(model_, q_, self.id, np.array(self.rel_sole_pos), True)
+        return self.cos
 
     def get_omega_v(self, model_, q_, qdot_):
         return rbdl.CalcPointVelocity6D(model_, q_, qdot_, self.id, self.foot_r_c, False)
