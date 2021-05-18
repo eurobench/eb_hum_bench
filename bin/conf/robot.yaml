@@ -1,10 +1,11 @@
 robotname: 'reemc'
 robotmodel: 'reemc.lua'
-modelpath: 'bin/conf'
+modelpath: 'conf/'
 modelformat: 'lua'
 base_link: ['base_link_tx', 'base_link_ty', 'base_link_tz', 'base_link_rz', 'base_link_ry', 'base_link_rx']
 leg_length: 0.85853
 mass: 77.5
+gravity: [0., 0., -9.81]
 foot_l: 'leg_left_6_joint'
 foot_r: 'leg_right_6_joint'
 torso_link: 'torso_1_joint'
