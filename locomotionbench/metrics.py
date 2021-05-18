@@ -693,3 +693,4 @@ class Metrics:
                     support_type = 'RS'
         impact = impact / (n_impacts * self.mass)
         return impact
+
