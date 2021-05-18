@@ -1,13 +1,12 @@
 from locomotionbench.performance_indicator import PerformanceIndicator
-import pandas as pd
+import math
 import numpy as np
 import rbdl
-from numba import jit
 
 
 class Cap(PerformanceIndicator):
     _arg_len = 2
-    _pi_name = 'CoP'
+    _pi_name = 'CAP'
 
     @property
     def arg_len(self):
@@ -39,13 +38,17 @@ class Cap(PerformanceIndicator):
             return -1
 
     def run_pi(self):
-        result = [self.fpe(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(cos))
+        result = [self.cap(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(cos))
                    for q, qdot, cos in zip(self.q, self.qdot, self.cos)
                    ]
         return result
 
-    def fpe(self, q_, qdot_, cos_):
+    def cap(self, q_, qdot_, cos_):
         fpe_output = rbdl.FootPlacementEstimatorInfo()
         self.balance_tk.CalculateFootPlacementEstimator(self.robot.model, q_, qdot_, cos_, np.array([0., 0., 1.]),
                                                         fpe_output, self.omega_small, False, False)
-        return fpe_output.r0F0
+        # u_, h_, v_, gcom_
+        # fpe_output.u, fpe_output.h, fpe_output.v0C0u, fpe_output.r0P0
+
+        cap = fpe_output.r0P0 + np.multiply(fpe_output.v0C0u * math.sqrt(fpe_output.h / abs(self.robot.gravity[2])), fpe_output.u)
+        return cap
