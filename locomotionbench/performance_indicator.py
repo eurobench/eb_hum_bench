@@ -3,6 +3,21 @@ import yaml
 from os import path
 from sys import argv, exit
 from datetime import datetime
+from functools import wraps
+from time import time
+
+
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kw):
+        ts = time()
+        result = f(*args, **kw)
+        te = time()
+        print('func:%r args:[%r, %r] took: %2.4f sec' % \
+              (f.__name__, args, kw, te - ts))
+        return result
+
+    return wrap
 
 
 class PerformanceIndicator(ABC):
@@ -33,6 +48,8 @@ class PerformanceIndicator(ABC):
             print("[Performance Indicator ", self.pi_name, "] Error: List of file paths does not match required:")
             print(require_)
             exit(-1)
+        self.cl_name_robot = 'Robot'
+        self.cl_name_experiment = 'Experiment'
         self.robot = robot_
         self.experiment = experiment_
         self.require = require_
@@ -40,6 +57,29 @@ class PerformanceIndicator(ABC):
 
         # self.performance_indicator()
 
+    def read_data(self, require_, data_):
+        name = type(data_).__name__
+        for item in require_:
+            if item == 'pos' and name == self.cl_name_experiment:
+                self.q = data_.files[item][self.experiment.col_names].to_numpy()
+            if item == 'vel' and name == self.cl_name_experiment:
+                self.qdot = data_.files[item][self.experiment.col_names].to_numpy()
+            if item == 'acc' and name == self.cl_name_experiment:
+                self.qddot = data_.files[item][self.experiment.col_names].to_numpy()
+            if item == 'trq' and name == self.cl_name_experiment:
+                self.trq = data_.files[item]
+            if item == 'ftl' and name == self.cl_name_experiment:
+                self.ftl = data_.files[item]
+            if item == 'ftr' and name == self.cl_name_experiment:
+                self.ftr = data_.files[item]
+            if item == 'cos' and name == self.cl_name_robot:
+                self.cos = data_.cos.to_numpy()
+            if item == 'phases' and name == self.cl_name_robot:
+                self.phases = self.robot.phases
+
+    # @abstractmethod
+    # def verify_required(self):
+    #     raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
     def performance_indicator(self):
@@ -48,5 +88,3 @@ class PerformanceIndicator(ABC):
     @abstractmethod
     def run_pi(self):
         raise NotImplementedError("Please Implement this method")
-
-

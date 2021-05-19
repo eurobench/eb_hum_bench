@@ -1,7 +1,6 @@
-from locomotionbench.performance_indicator import PerformanceIndicator
-import math
+from locomotionbench.performance_indicator import *
 import numpy as np
-import rbdl
+
 
 
 class Cop(PerformanceIndicator):
@@ -19,13 +18,14 @@ class Cop(PerformanceIndicator):
     def __init__(self, require_, output_folder_path_, robot_, experiment_):
         super().__init__(require_, output_folder_path_, robot_, experiment_)
 
-        self.cos = self.robot.cos.to_numpy()
-        self.phases = self.robot.phases
+        self.read_data(require_, robot_)
+        self.read_data(require_, experiment_)
         self.len = len(self.experiment.lead_time)
 
+    @timing
     def performance_indicator(self):
-        self.result = self.run_pi()
-        if len(self.result) == self.len:
+        result = self.run_pi()
+        if len(result) == self.len:
             return 0
         else:
             return -1
@@ -49,11 +49,11 @@ class Cop(PerformanceIndicator):
                 p_1 = phase.fr_obj.cos
                 f_1 = phase.fr_obj.forces
                 m_1 = phase.fr_obj.moment
-            result.append(self.cop(p_1, f_1, m_1, p_2, f_2, m_2))
+            result.append(self.__metric(p_1, f_1, m_1, p_2, f_2, m_2))
         return result
 
     @staticmethod
-    def cop(p_1, f_1, m_1, p_2, f_2, m_2):
+    def __metric(p_1, f_1, m_1, p_2, f_2, m_2):
         cop = np.zeros(3)
         # single support
         if p_2 is None and f_2 is None and m_2 is None:
