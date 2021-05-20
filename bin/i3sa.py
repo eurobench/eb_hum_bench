@@ -6,7 +6,7 @@ from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err, impac
 # ARG2 = 'conf/robot.yaml'
 
 # TODO: Specify output dir in experiment.yaml
-OUTPUT = 'output/'
+OUTPUT = 'output/test/'
 
 USAGE = """usage: i3sa robot_model.lua joint_states.csv joint_velocities.csv joint_accelerations.csv joint_torques.csv grf_left.csv grf_right.csv conditions.yaml output_dir
 robot_model.lua
@@ -44,21 +44,21 @@ if __name__ == '__main__':
         sys.exit(is_ok)
 
     print("Running PI Capture Point")
-    require = ['pos', 'vel', 'cos']
-    cap = cap.Cap(require, output_folder_path, robot, experiment, True)
+    require = ['pos', 'vel', 'cos', 'phases']
+    cap = cap.Cap(require, output_folder_path, robot, experiment)
     is_ok = cap.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
     print("Running PI Foot Placement Estimator")
-    require = ['pos', 'vel', 'cos']
-    fpe = fpe.Fpe(require, output_folder_path, robot, experiment, True)
+    require = ['pos', 'vel', 'cos', 'phases']
+    fpe = fpe.Fpe(require, output_folder_path, robot, experiment)
     is_ok = fpe.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
     print("Running PI Zero Moment Point")
-    require = ['pos', 'vel', 'acc']
+    require = ['pos', 'vel', 'acc', 'phases']
     zmp = zmp.Zmp(require, output_folder_path, robot, experiment)
     is_ok = zmp.performance_indicator()
     if not is_ok == 0:
