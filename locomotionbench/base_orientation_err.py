@@ -28,6 +28,7 @@ class BaseOrientationError(PerformanceIndicator):
     @timing
     def performance_indicator(self):
         result = self.run_pi()
+
         if len(result) == self.len:
             return 0
         else:

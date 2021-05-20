@@ -52,8 +52,8 @@ class Robot:
         ftr = experiment_.files['ftr']
         lead_time = experiment_.lead_time.to_numpy().flatten()
 
-        l_upper = np.zeros(len(lead_time))
-        r_upper = np.zeros(len(lead_time))
+        # l_upper = np.zeros(len(lead_time))
+        # r_upper = np.zeros(len(lead_time))
         smooth = 0.99
 
         # TODO: parameterize weight threshold
@@ -76,8 +76,8 @@ class Robot:
         result = np.array(result)
         fl_pos = result[:, 0, :]
         fr_pos = result[:, 1, :]
-        fl_vel = result[:, 2, :]
-        fr_vel = result[:, 3, :]
+        # fl_vel = result[:, 2, :]
+        # fr_vel = result[:, 3, :]
 
         # Identify gait phase based on the force torque acting on the the feet
         l_upper = [i if j > up else -999 for i in fl_ft for j in fl_ft_smooth]
@@ -171,13 +171,13 @@ class Robot:
         right_single_support = self.phases.query('fr_single == True').index.tolist()
         double_support = self.phases.query('double == True').index.tolist()
         pos = experiment_.files['pos']
-        vel = experiment_.files['vel']
+        # vel = experiment_.files['vel']
         ftl = experiment_.files['ftl']
         ftr = experiment_.files['ftr']
         for index, value in experiment_.lead_time.itertuples():
             cos = None
             q = np.array(pos.loc[index].drop('time'))
-            qdot = np.array(vel.loc[index].drop('time'))
+            # qdot = np.array(vel.loc[index].drop('time'))
             if index in left_single_support:
                 foot1 = FootContact(self.body_map.index(self.l_foot) + 1, self.relative_sole_pos,
                                     self.sole_l,
@@ -243,7 +243,6 @@ class Robot:
 
         return phases
 
-
     def distance_to_double_support(self, q_, poi_, foot1_, foot2_):
         """
         needs module shapely
@@ -268,7 +267,7 @@ class Robot:
 
         polygon = []
 
-        #corners_global_1 = foot1_.get_global_corners(self.model, q_)
+        # corners_global_1 = foot1_.get_global_corners(self.model, q_)
         corners_global_2 = foot2_.get_global_corners(self.model, q_)
 
         for corner in foot1_.corners_local:
@@ -328,7 +327,6 @@ class Robot:
 class FootContact:
     def __init__(self, id_=None, rel_sole_pos_=None, corners_local_=None, foot_r_c_=None, force_=None,
                  moment_=None):
-
         self.id = id_
         self.corners_local = corners_local_
         self.foot_r_c = np.array(foot_r_c_)
@@ -341,12 +339,12 @@ class FootContact:
         # else:
         #     self.cos, self.omega_v, self.corners_global = None, None, None
 
-    def get_cos(self, model_, q_,):
+    def get_cos(self, model_, q_, ):
         self.cos = rbdl.CalcBodyToBaseCoordinates(model_, q_, self.id, np.array(self.rel_sole_pos), True)
         return self.cos
 
     def get_omega_v(self, model_, q_, qdot_):
-        return rbdl.CalcPointVelocity6D(model_, q_, qdot_, self.id, self.foot_r_c, False)
+        return rbdl.CalcPointVelocity6D(model_, q_, qdot_, self.id, self.foot_r_c, True)
 
     def get_global_corners(self, model_, q_):
         corners_global = []
@@ -377,13 +375,12 @@ class Experiment:
         grf_right.csv
         conditions.yaml
         """
-        self.files = {}
-        self.files['pos'] = pd.read_csv(file_names_[0], sep=separator_)
-        self.files['vel'] = pd.read_csv(file_names_[1], sep=separator_)
-        self.files['acc'] = pd.read_csv(file_names_[2], sep=separator_)
-        self.files['trq'] = pd.read_csv(file_names_[3], sep=separator_)
-        self.files['ftl'] = pd.read_csv(file_names_[4], sep=separator_)
-        self.files['ftr'] = pd.read_csv(file_names_[5], sep=separator_)
+        self.files = {'pos': pd.read_csv(file_names_[0], sep=separator_),
+                      'vel': pd.read_csv(file_names_[1], sep=separator_),
+                      'acc': pd.read_csv(file_names_[2], sep=separator_),
+                      'trq': pd.read_csv(file_names_[3], sep=separator_),
+                      'ftl': pd.read_csv(file_names_[4], sep=separator_),
+                      'ftr': pd.read_csv(file_names_[5], sep=separator_)}
         # self.files['conditions'] = yaml.load(file_names_[6], Loader=yaml.FullLoader)
         # TODO check order for all files in a smart way
         self.col_names = list(self.files['pos'].columns)

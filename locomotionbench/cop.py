@@ -1,6 +1,5 @@
 from locomotionbench.performance_indicator import *
 import numpy as np
-import pandas as pd
 
 
 class Cop(PerformanceIndicator):
