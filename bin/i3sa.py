@@ -2,7 +2,7 @@ import sys
 from locomotionbench.utility import IOHandler
 from locomotionbench.experiment_factory import ExperimentFactory
 from locomotionbench.metrics import Metrics
-from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err
+from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err, impact
 from locomotionbench.environment import Robot, Experiment
 from locomotionbench.gait_segmentation import *
 from locomotionbench.indicators import Indicators
@@ -92,6 +92,16 @@ if __name__ == '__main__':
     require = ['pos', 'phases']
     base_err = base_orientation_err.BaseOrientationError(require, output_folder_path, robot, experiment)
     is_ok = base_err.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+
+    print("Running PI Impact")
+    require = ['phases']
+    impact = impact.Impact(require, output_folder_path, robot, experiment)
+    is_ok = impact.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+
 
     # #  Initialize experiment: load robot.yaml and experiment.yaml
     # robot, experiment = IOHandler.init(sys.argv[1:])
