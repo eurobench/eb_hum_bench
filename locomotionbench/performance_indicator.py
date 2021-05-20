@@ -57,7 +57,7 @@ class PerformanceIndicator(ABC):
 
         # self.performance_indicator()
 
-    def read_data(self, require_, data_):
+    def read_data(self, require_, data_, d_bos=False):
         name = type(data_).__name__
         for item in require_:
             if item == 'pos' and name == self.cl_name_experiment:
@@ -74,7 +74,7 @@ class PerformanceIndicator(ABC):
                 self.ftr = data_.files[item]
             if item == 'cos' and name == self.cl_name_robot:
                 self.cos = data_.cos.to_numpy()
-            if item == 'phases' and name == self.cl_name_robot:
+            if item == 'phases' and name == self.cl_name_robot or d_bos is True:
                 self.phases = self.robot.phases
 
     # @abstractmethod

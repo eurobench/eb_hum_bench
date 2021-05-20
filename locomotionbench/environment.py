@@ -183,7 +183,9 @@ class Robot:
                                     self.sole_l,
                                     self.foot_r_c, np.array(ftl.loc[index, ['force_x', 'force_y', 'force_z']]),
                                     np.array(ftl.loc[index, ['torque_x', 'torque_y', 'torque_z']]))
+                foot2 = FootContact()
                 self.phases.loc[index, ['fl_obj']] = foot1
+                self.phases.loc[index, ['fr_obj']] = foot2
                 cos = foot1.get_cos(self.model, q)
             # are we looking at a single support phase (or double): prepare foot right contact
             elif index in right_single_support:
@@ -192,7 +194,9 @@ class Robot:
                                     self.sole_r,
                                     self.foot_r_c, np.array(ftr.loc[index, ['force_x', 'force_y', 'force_z']]),
                                     np.array(ftr.loc[index, ['torque_x', 'torque_y', 'torque_z']]))
+                foot2 = FootContact()
                 self.phases.loc[index, ['fr_obj']] = foot1
+                self.phases.loc[index, ['fl_obj']] = foot2
                 cos = foot1.get_cos(self.model, q)
             # are we looking at a single support phase (or double): prepare foot contact of a support polygon for both feet
             elif index in double_support:
@@ -264,13 +268,16 @@ class Robot:
 
         polygon = []
 
+        #corners_global_1 = foot1_.get_global_corners(self.model, q_)
+        corners_global_2 = foot2_.get_global_corners(self.model, q_)
+
         for corner in foot1_.corners_local:
             cc = foot1_ori_.dot(corner)
             polygon.append((cc[0], cc[1]))
 
-        for i in range(0, len(foot2_.corners_global), 2):
+        for i in range(0, len(corners_global_2), 2):
             cc = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id,
-                                                np.array([foot2_.corners_global[i], foot2_.corners_global[i + 1], 0.]),
+                                                np.array([corners_global_2[i], corners_global_2[i + 1], 0.]),
                                                 False)
             cc = foot1_ori_.dot(cc)
             polygon.append((cc[0], cc[1]))

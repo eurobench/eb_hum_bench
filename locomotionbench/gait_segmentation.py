@@ -6,7 +6,6 @@ import rbdl
 from locomotionbench.environment import FootContact
 from functools import wraps
 from time import time
-from numba import jit
 
 
 def timing(f):
