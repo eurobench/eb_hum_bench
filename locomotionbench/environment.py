@@ -4,6 +4,9 @@ import yaml
 import pandas as pd
 import numpy as np
 from csaps import csaps
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+from shapely.geometry import MultiPoint
 
 
 class Robot:
@@ -235,6 +238,84 @@ class Robot:
         phases['double'] = double
 
         return phases
+
+
+    def distance_to_double_support(self, q_, poi_, foot1_, foot2_):
+        """
+        needs module shapely
+                    3-------2           2-------3
+                    |       |           |       |
+                    | foot2 |           | foot2 |
+        2-------3   4-------1      or   1-------4  3-------2
+        |       |                                  |       |
+        | foot1 |                                  | foot1 |
+        1-------4                                  4-------1
+        :param q_: joint positions and global position and orientation
+        :param poi_: point of interest to be checked whether inside of support polygon
+        :param foot1_: containing all information about foot1 (body id, corners in body and global coordinates
+        :param foot2_: containing all information about foot2 (body id, corners in body and global coordinates
+        :return:
+        """
+
+        foot1_ori_ = rbdl.CalcBodyWorldOrientation(self.model, q_, foot1_.id, True)
+
+        point_ = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id, poi_)
+        point_ = foot1_ori_.dot(point_)
+
+        polygon = []
+
+        for corner in foot1_.corners_local:
+            cc = foot1_ori_.dot(corner)
+            polygon.append((cc[0], cc[1]))
+
+        for i in range(0, len(foot2_.corners_global), 2):
+            cc = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id,
+                                                np.array([foot2_.corners_global[i], foot2_.corners_global[i + 1], 0.]),
+                                                False)
+            cc = foot1_ori_.dot(cc)
+            polygon.append((cc[0], cc[1]))
+
+        point_shapely = Point(point_[0], point_[1])
+        multipoint = MultiPoint(polygon)
+        polygon_shapely = multipoint.convex_hull
+
+        distance = point_shapely.distance(polygon_shapely.boundary)
+
+        if polygon_shapely.contains(point_shapely):
+            return distance
+        else:
+            return -distance
+
+    def distance_to_support_polygon(self, q_, poi_, foot1_, foot2_=None):
+
+        if foot2_.id is None:
+
+            foot1_ori_ = rbdl.CalcBodyWorldOrientation(self.model, q_, foot1_.id, True)
+            # point of interest with respect to the frame of foot1
+            point_ = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id, poi_)
+            # transforming to the orientation of the base frame
+            point_ = foot1_ori_.dot(point_)
+
+            polygon = []
+
+            for corner in foot1_.corners_local:
+                cc = foot1_ori_.dot(corner)
+                polygon.append((cc[0], cc[1]))
+
+            point_shapely = Point(point_[0], point_[1])
+            polygon_shapely = Polygon(polygon)
+
+            # shortest distance to boundary of polygon
+            distance = point_shapely.distance(polygon_shapely.boundary)
+
+            if polygon_shapely.contains(point_shapely):
+                return distance
+            else:
+                return -distance
+
+        else:
+
+            return self.distance_to_double_support(q_, poi_, foot1_, foot2_)
 
 
 class FootContact:
