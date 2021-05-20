@@ -20,7 +20,7 @@ import rbdl
 
 
 class Cap(PerformanceIndicator):
-    _arg_len = 3
+    _arg_len = 4
     _pi_name = 'CAP'
 
     @property

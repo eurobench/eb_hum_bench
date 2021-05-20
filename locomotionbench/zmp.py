@@ -1,11 +1,25 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+cap.py:
+Calculates the zero moment point and corresponding performance indicators.
+"""
+__author__ = ["Felix Aller", "Monika Harant"]
+__copyright__ = "Copyright 2021, EUROBENCH Project"
+__credits__ = ["Monika Harant", "Adrià Roig", "Martin Felis"]
+__license__ = "BSD-2"
+__version__ = "0.2"
+__maintainer__ = "Felix Aller"
+__email__ = "felix.aller@ziti.uni-heidelberg.de"
+__status__ = "Development"
+
 from locomotionbench.performance_indicator import *
 import numpy as np
 import rbdl
 
 
 class Zmp(PerformanceIndicator):
-    _arg_len = 3
+    _arg_len = 4
     _pi_name = 'ZMP'
 
     @property
