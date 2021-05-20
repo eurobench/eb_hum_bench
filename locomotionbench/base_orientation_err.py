@@ -2,7 +2,7 @@ from locomotionbench.performance_indicator import *
 import numpy as np
 import rbdl
 import sophus as sp
-from scipy.spatial.transform import Rotation as r
+from scipy.spatial.transform import Rotation as Rt
 
 
 class BaseOrientationError(PerformanceIndicator):
@@ -39,8 +39,8 @@ class BaseOrientationError(PerformanceIndicator):
 
     def __metric(self, q_):
         base_orient = rbdl.CalcBodyWorldOrientation(self.robot.model, q_, self.robot.body_map.index(self.robot.torso_link) + 1, True).transpose()
-        r_base_orient = r.from_matrix(base_orient)
-        r_identity = r.from_quat([0, 0, 0, 1])
+        r_base_orient = Rt.from_matrix(base_orient)
+        r_identity = Rt.from_quat([0, 0, 0, 1])
         r_error = r_identity * r_base_orient.inv()
         s_error = sp.SO3(r_error.as_matrix())
         error = sp.SO3.log(s_error)
