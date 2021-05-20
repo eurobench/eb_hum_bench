@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+performance_indicator.py:
+Template class of a perfomance indicator
+"""
+__author__ = "Felix Aller"
+__copyright__ = "Copyright 2021, EUROBENCH Project"
+__credits__ = ["Monika Harant", "Adrià Roig", "Matthew Millard", "Martin Felis"]
+__license__ = "BSD-2"
+__version__ = "0.1"
+__maintainer__ = "Felix Aller"
+__email__ = "felix.aller@ziti.uni-heidelberg.de"
+__status__ = "Development"
+
 from abc import ABC, abstractmethod
 from sys import exit
 from functools import wraps

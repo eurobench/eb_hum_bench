@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from locomotionbench.performance_indicator import *
 import numpy as np
 

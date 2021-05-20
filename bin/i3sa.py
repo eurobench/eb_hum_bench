@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+i3sa.py:
+Launches the corresponding performance indicators for experimental data retrieved from the EUROBENCH I3SA Protocol.
+"""
+__author__ = "Felix Aller"
+__copyright__ = "Copyright 2021, EUROBENCH Project"
+__credits__ = ["Monika Harant", "Adrià Roig", "Matthew Millard", "Martin Felis"]
+__license__ = "BSD-2"
+__version__ = "0.4"
+__maintainer__ = "Felix Aller"
+__email__ = "felix.aller@ziti.uni-heidelberg.de"
+__status__ = "Development"
+
 import sys
 from locomotionbench.environment import Robot, Experiment
 from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err, impact, distance, foot_contact_velocity

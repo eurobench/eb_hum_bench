@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+environment.py:
+Creates the experimental environment by parsing the data output files, robot information and robot-environment contacts
+"""
+__author__ = ["Felix Aller", "Monika Harant"]
+__copyright__ = "Copyright 2021, EUROBENCH Project"
+__credits__ = ["Monika Harant", "Adrià Roig", "Matthew Millard", "Martin Felis"]
+__license__ = "BSD-2"
+__version__ = "0.4"
+__maintainer__ = "Felix Aller"
+__email__ = "felix.aller@ziti.uni-heidelberg.de"
+__status__ = "Development"
+
 import rbdl
 import yaml
 import pandas as pd

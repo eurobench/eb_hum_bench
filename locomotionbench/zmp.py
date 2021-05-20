@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from locomotionbench.performance_indicator import *
 import numpy as np
 import rbdl

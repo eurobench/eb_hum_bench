@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+base_orientation.py:
+Calculates the base orientation error.
+"""
+__author__ = ["Adrià Roig", "Felix Aller"]
+__copyright__ = "Copyright 2021, EUROBENCH Project"
+__credits__ = ["Felix Aller", "Matthew Millard", "Martin Felis"]
+__license__ = "BSD-2"
+__version__ = "0.2"
+__maintainer__ = "Felix Aller"
+__email__ = "felix.aller@ziti.uni-heidelberg.de"
+__status__ = "Development"
+
 from locomotionbench.performance_indicator import *
 import numpy as np
 import rbdl
