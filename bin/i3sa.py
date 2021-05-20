@@ -1,13 +1,6 @@
 import sys
-from locomotionbench.utility import IOHandler
-from locomotionbench.experiment_factory import ExperimentFactory
-from locomotionbench.metrics import Metrics
-from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err, impact
 from locomotionbench.environment import Robot, Experiment
-from locomotionbench.gait_segmentation import *
-from locomotionbench.indicators import Indicators
-import matplotlib.pyplot as plt
-import timeit
+from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err, impact, distance, foot_contact_velocity
 
 # ARG1 = 'conf/experiment.yaml'
 # ARG2 = 'conf/robot.yaml'
@@ -34,7 +27,7 @@ if __name__ == '__main__':
     #     sys.exit(-1)
 
     temp_argv = ['conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv', 'input/2021_02_19/14/1/acc.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl.csv', 'input/2021_02_19/14/1/ftr.csv']
-    #model_path, pos_path, vel_path, acc_path, trq_path, grf_l_path, grf_r_path, conditions_path, output_folder_path = sys.argv[1:]
+    #  model_path, pos_path, vel_path, acc_path, trq_path, grf_l_path, grf_r_path, conditions_path, output_folder_path = sys.argv[1:]
     output_folder_path = OUTPUT
     robot = Robot(temp_argv[0])
     experiment = Experiment(temp_argv[1:], robot.body_map)
@@ -102,6 +95,19 @@ if __name__ == '__main__':
     if not is_ok == 0:
         sys.exit(is_ok)
 
+    print("Running PI Distance Travelled")
+    require = ['pos', 'phases']
+    distance = distance.DistanceTravelled(require, output_folder_path, robot, experiment)
+    is_ok = distance.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+
+    print("Running PI Foot Contact Velocities")
+    require = ['pos', 'vel', 'phases']
+    fc_vel = foot_contact_velocity.FootContactVelocity(require, output_folder_path, robot, experiment)
+    is_ok = fc_vel.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
 
     # #  Initialize experiment: load robot.yaml and experiment.yaml
     # robot, experiment = IOHandler.init(sys.argv[1:])
@@ -142,4 +148,3 @@ if __name__ == '__main__':
     # print('File ', OUTPUT + 'n_steps.yaml', ' written')
     # IOHandler.export_scalar(normalized_dist_steps, OUTPUT + 'normalized_dist_steps.yaml')
     # print('File ', OUTPUT + 'normalized_dist_steps.yaml', ' written')
-
