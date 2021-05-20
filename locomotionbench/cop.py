@@ -1,7 +1,6 @@
 from locomotionbench.performance_indicator import *
 import numpy as np
-
-
+import pandas as pd
 
 class Cop(PerformanceIndicator):
     _arg_len = 2
@@ -31,29 +30,28 @@ class Cop(PerformanceIndicator):
             return -1
 
     def run_pi(self):
-        result = []
-        for phase in self.phases.itertuples():
-            p_1, f_1, m_1, p_2, f_2, m_2 = None, None, None, None, None, None
-            if phase.double:
-                p_1 = phase.fl_obj.cos
-                f_1 = phase.fl_obj.forces
-                m_1 = phase.fl_obj.moment
-                p_2 = phase.fr_obj.cos
-                f_2 = phase.fr_obj.forces
-                m_2 = phase.fr_obj.moment
-            elif phase.fl_single:
-                p_1 = phase.fl_obj.cos
-                f_1 = phase.fl_obj.forces
-                m_1 = phase.fl_obj.moment
-            elif phase.fr_single:
-                p_1 = phase.fr_obj.cos
-                f_1 = phase.fr_obj.forces
-                m_1 = phase.fr_obj.moment
-            result.append(self.__metric(p_1, f_1, m_1, p_2, f_2, m_2))
+        result = [self.__metric(row) for row in zip(self.phases[['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj']].to_numpy())]
         return result
 
     @staticmethod
-    def __metric(p_1, f_1, m_1, p_2, f_2, m_2):
+    def __metric(row):
+        left, right, double, fl_obj, fr_obj = row[0]
+        p_1, f_1, m_1, p_2, f_2, m_2 = None, None, None, None, None, None
+        if double:
+            p_1 = fl_obj.cos
+            f_1 = fl_obj.forces
+            m_1 = fl_obj.moment
+            p_2 = fr_obj.cos
+            f_2 = fr_obj.forces
+            m_2 = fr_obj.moment
+        elif left:
+            p_1 = fl_obj.cos
+            f_1 = fl_obj.forces
+            m_1 = fl_obj.moment
+        elif right:
+            p_1 = fr_obj.cos
+            f_1 = fr_obj.forces
+            m_1 = fr_obj.moment
         cop = np.zeros(3)
         # single support
         if p_2 is None and f_2 is None and m_2 is None:
