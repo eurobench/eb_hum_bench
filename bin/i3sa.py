@@ -52,21 +52,21 @@ if __name__ == '__main__':
 
     print("Running PI Capture Point")
     require = ['pos', 'vel', 'cos']
-    cap = cap.Cap(require, output_folder_path, robot, experiment)
+    cap = cap.Cap(require, output_folder_path, robot, experiment, True)
     is_ok = cap.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
     print("Running PI Foot Placement Estimator")
     require = ['pos', 'vel', 'cos']
-    cap = fpe.Fpe(require, output_folder_path, robot, experiment)
-    is_ok = cap.performance_indicator()
+    fpe = fpe.Fpe(require, output_folder_path, robot, experiment, True)
+    is_ok = fpe.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
     print("Running PI Zero Moment Point")
     require = ['pos', 'vel', 'acc']
-    zmp = zmp.Zmp(require, output_folder_path, robot, experiment)
+    zmp = zmp.Zmp(require, output_folder_path, robot, experiment, True)
     is_ok = zmp.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)

@@ -2,6 +2,7 @@ from locomotionbench.performance_indicator import *
 import numpy as np
 import pandas as pd
 
+
 class Cop(PerformanceIndicator):
     _arg_len = 2
     _pi_name = 'CoP'
