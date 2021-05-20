@@ -2,7 +2,7 @@ import sys
 from locomotionbench.utility import IOHandler
 from locomotionbench.experiment_factory import ExperimentFactory
 from locomotionbench.metrics import Metrics
-from locomotionbench import cap, cop, fpe
+from locomotionbench import cap, cop, fpe, zmp, com
 from locomotionbench.environment import Robot, Experiment
 from locomotionbench.gait_segmentation import *
 from locomotionbench.indicators import Indicators
@@ -44,23 +44,47 @@ if __name__ == '__main__':
     robot.create_contacts(experiment)
 
     print("Running PI Center of Pressure")
-    require = ['pos', 'vel']
+    require = ['phases', 'cos']
     cop = cop.Cop(require, output_folder_path, robot, experiment)
     is_ok = cop.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
     print("Running PI Capture Point")
-    require = ['pos', 'vel']
+    require = ['pos', 'vel', 'cos']
     cap = cap.Cap(require, output_folder_path, robot, experiment)
     is_ok = cap.performance_indicator()
     if not is_ok == 0:
         sys.exit(is_ok)
 
     print("Running PI Foot Placement Estimator")
-    require = ['pos', 'vel']
+    require = ['pos', 'vel', 'cos']
     cap = fpe.Fpe(require, output_folder_path, robot, experiment)
     is_ok = cap.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+
+    print("Running PI Zero Moment Point")
+    require = ['pos', 'vel', 'acc']
+    zmp = zmp.Zmp(require, output_folder_path, robot, experiment)
+    is_ok = zmp.performance_indicator()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+
+    print("Running PI Center of Mass")
+    require = ['pos', 'vel', 'acc']
+    com = com.Com(require, output_folder_path, robot, experiment)
+    com.performance_indicator()
+    is_ok = com.loc()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+    is_ok = com.vel()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+    is_ok = com.acc()
+    if not is_ok == 0:
+        sys.exit(is_ok)
+    is_ok = com.ang_mom()
     if not is_ok == 0:
         sys.exit(is_ok)
 
