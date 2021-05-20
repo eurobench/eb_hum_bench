@@ -17,21 +17,21 @@ from locomotionbench.performance_indicator import *
 
 
 class Impact(PerformanceIndicator):
-    _arg_len = 1
-    _pi_name = 'Impact'
 
-    @property
-    def arg_len(self):
-        return self._arg_len
+    _pi_name = 'Impact'
+    _required = ['phases']
 
     @property
     def pi_name(self):
         return self._pi_name
 
-    def __init__(self, require_, output_folder_path_, robot_, experiment_):
-        super().__init__(require_, output_folder_path_, robot_, experiment_)
+    @property
+    def required(self):
+        return self._required
 
-        self.read_data(require_, robot_)
+    def __init__(self, output_folder_path, robot=None, experiment=None):
+        super().__init__(output_folder_path, robot, experiment)
+
         self.vertical_force = 2
 
     @timing

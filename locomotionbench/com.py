@@ -19,22 +19,19 @@ import rbdl
 
 
 class Com(PerformanceIndicator):
-    _arg_len = 3
     _pi_name = 'CoM'
-
-    @property
-    def arg_len(self):
-        return self._arg_len
+    _required = ['pos', 'vel', 'acc']
 
     @property
     def pi_name(self):
         return self._pi_name
 
-    def __init__(self, require_, output_folder_path_, robot_, experiment_):
-        super().__init__(require_, output_folder_path_, robot_, experiment_)
-        require_ = require_
-        self.read_data(require_, robot_)
-        self.read_data(require_, experiment_)
+    @property
+    def required(self):
+        return self._required
+
+    def __init__(self, output_folder_path, robot=None, experiment=None):
+        super().__init__(output_folder_path, robot, experiment)
 
         self.balance_tk = rbdl.BalanceToolkit()
         self.omega_small = 1e-6

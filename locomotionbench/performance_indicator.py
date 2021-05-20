@@ -36,16 +36,6 @@ class PerformanceIndicator(ABC):
 
     @property
     @abstractmethod
-    def arg_len(self):
-        raise NotImplementedError()
-
-    @arg_len.setter
-    @abstractmethod
-    def arg_len(self, _arg_len):
-        raise NotImplementedError()
-
-    @property
-    @abstractmethod
     def pi_name(self):
         raise NotImplementedError()
 
@@ -54,40 +44,51 @@ class PerformanceIndicator(ABC):
     def pi_name(self, _pi_name):
         raise NotImplementedError()
 
+    @property
     @abstractmethod
-    def __init__(self, require_, output_folder_path, robot_=None, experiment_=None):
-        if len(require_) != self.arg_len:
-            print("[Performance Indicator ", self.pi_name, "] Error: List of file paths does not match required:")
-            print(require_)
-            exit(-1)
+    def required(self):
+        raise NotImplementedError()
+
+    @required.setter
+    @abstractmethod
+    def required(self, _required):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __init__(self, output_folder_path, robot=None, experiment=None):
+
         self.cl_name_robot = 'Robot'
         self.cl_name_experiment = 'Experiment'
-        self.robot = robot_
-        self.experiment = experiment_
-        self.require = require_
         self.output_folder = output_folder_path
 
-        # self.performance_indicator()
+        if robot:
+            self.robot = robot
+            self.read_data(self.required, robot)
+        if experiment:
+            self.experiment = experiment
+            self.read_data(self.required, experiment)
 
-    def read_data(self, require_, data_, d_bos=False):
+    def read_data(self, require_, data_):
         name = type(data_).__name__
         for item in require_:
-            if item == 'pos' and name == self.cl_name_experiment:
-                self.q = data_.files[item][self.experiment.col_names].to_numpy()
-            if item == 'vel' and name == self.cl_name_experiment:
-                self.qdot = data_.files[item][self.experiment.col_names].to_numpy()
-            if item == 'acc' and name == self.cl_name_experiment:
-                self.qddot = data_.files[item][self.experiment.col_names].to_numpy()
-            if item == 'trq' and name == self.cl_name_experiment:
-                self.trq = data_.files[item]
-            if item == 'ftl' and name == self.cl_name_experiment:
-                self.ftl = data_.files[item]
-            if item == 'ftr' and name == self.cl_name_experiment:
-                self.ftr = data_.files[item]
-            if item == 'cos' and name == self.cl_name_robot:
-                self.cos = data_.cos.to_numpy()
-            if item == 'phases' and name == self.cl_name_robot or d_bos is True:
-                self.phases = self.robot.phases
+            if name == self.cl_name_experiment:
+                if item == 'pos':
+                    self.q = data_.files[item][self.experiment.col_names].to_numpy()
+                if item == 'vel':
+                    self.qdot = data_.files[item][self.experiment.col_names].to_numpy()
+                if item == 'acc':
+                    self.qddot = data_.files[item][self.experiment.col_names].to_numpy()
+                if item == 'trq':
+                    self.trq = data_.files[item]
+                if item == 'ftl':
+                    self.ftl = data_.files[item]
+                if item == 'ftr':
+                    self.ftr = data_.files[item]
+            elif name == self.cl_name_robot:
+                if item == 'cos':
+                    self.cos = data_.cos.to_numpy()
+                if item == 'phases':
+                    self.phases = data_.phases
 
     # @abstractmethod
     # def verify_required(self):

@@ -21,7 +21,7 @@ from csaps import csaps
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import MultiPoint
-
+from locomotionbench.performance_indicator import timing
 
 class Robot:
     def __init__(self, conf_file_):
@@ -55,6 +55,7 @@ class Robot:
             order.append(item_.strip().replace('_link', '_joint'))
         return order
 
+    @timing
     def gait_segmentation(self, experiment_, remove_ds=False, remove_hs=False):
         """
         segment the complete gait according to 3-phases: single support l/r and double support
@@ -180,6 +181,7 @@ class Robot:
         remove_back = r_b.idxmin()
         return remove_front, remove_back
 
+    @timing
     def create_contacts(self, experiment_):
         left_single_support = self.phases.query('fl_single == True').index.tolist()
         right_single_support = self.phases.query('fr_single == True').index.tolist()
@@ -407,3 +409,22 @@ class Experiment:
 
         # TODO check if column time = lead time for all files
         self.lead_time = self.files['pos'].loc[:, ['time']]
+
+
+class Color:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+    @staticmethod
+    def green_print(text):
+        print(f"{Color.OKGREEN}{text}{Color.ENDC}")
+    @staticmethod
+    def cyan_print(text):
+        print(f"{Color.OKCYAN}{text}{Color.ENDC}")

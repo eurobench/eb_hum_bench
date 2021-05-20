@@ -21,22 +21,20 @@ from scipy.spatial.transform import Rotation as Rt
 
 
 class BaseOrientationError(PerformanceIndicator):
-    _arg_len = 2
-    _pi_name = 'Base Orientation Error'
 
-    @property
-    def arg_len(self):
-        return self._arg_len
+    _pi_name = 'Base Orientation Error'
+    _required = ['pos', 'phases']
 
     @property
     def pi_name(self):
         return self._pi_name
 
-    def __init__(self, require_, output_folder_path_, robot_, experiment_):
-        super().__init__(require_, output_folder_path_, robot_, experiment_)
+    @property
+    def required(self):
+        return self._required
 
-        self.read_data(require_, robot_)
-        self.read_data(require_, experiment_)
+    def __init__(self, output_folder_path, robot=None, experiment=None):
+        super().__init__(output_folder_path, robot, experiment)
 
         self.len = len(self.experiment.lead_time)
 
