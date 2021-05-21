@@ -7,18 +7,17 @@ Template class of a perfomance indicator
 __author__ = "Felix Aller"
 __copyright__ = "Copyright 2021, EUROBENCH Project"
 __credits__ = ["Monika Harant", "Adrià Roig", "Matthew Millard", "Martin Felis"]
-__license__ = "BSD-2"
+__license__ = "BSD-2-Clause"
 __version__ = "0.1"
 __maintainer__ = "Felix Aller"
 __email__ = "felix.aller@ziti.uni-heidelberg.de"
 __status__ = "Development"
 
 from abc import ABC, abstractmethod
-from sys import exit
 from functools import wraps
 from time import time
 import numpy as np
-
+import sys
 
 def timing(f):
     @wraps(f)
@@ -63,15 +62,24 @@ class PerformanceIndicator(ABC):
 
         if robot:
             self.robot = robot
-            self.read_data(self.required, robot)
+            try:
+                self.read_data(self.required, robot)
+            except FileNotFoundError:
+                raise FileNotFoundError
         if experiment:
             self.experiment = experiment
-            self.read_data(self.required, experiment)
+            try:
+                self.read_data(self.required, experiment)
+            except FileNotFoundError:
+                raise FileNotFoundError
 
     def read_data(self, require_, data_):
         name = type(data_).__name__
         for item in require_:
             if name == self.cl_name_experiment:
+                if item in self.experiment.files_not_provided:
+                    print(f"\033[91m{item} is not provided but required.\033[0m")
+                    raise FileNotFoundError
                 if item == 'pos':
                     self.q = data_.files[item][self.experiment.col_names].to_numpy()
                 if item == 'vel':

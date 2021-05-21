@@ -7,7 +7,7 @@ Calculates the average floor impact.
 __author__ = ["Adrià Roig", "Felix Aller"]
 __copyright__ = "Copyright 2021, EUROBENCH Project"
 __credits__ = "Monika Harant"
-__license__ = "BSD-2"
+__license__ = "BSD-2-Clause"
 __version__ = "0.2"
 __maintainer__ = "Felix Aller"
 __email__ = "felix.aller@ziti.uni-heidelberg.de"
@@ -19,7 +19,7 @@ from locomotionbench.performance_indicator import *
 class Impact(PerformanceIndicator):
 
     _pi_name = 'Impact'
-    _required = ['phases']
+    _required = ['phases', 'ftl', 'ftr']
 
     @property
     def pi_name(self):

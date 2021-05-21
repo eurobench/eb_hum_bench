@@ -41,7 +41,7 @@ if __name__ == '__main__':
     #     print(USAGE)
     #     sys.exit(-1)
 
-    temp_argv = ['conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv', 'input/2021_02_19/14/1/acc.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl.csv', 'input/2021_02_19/14/1/ftr.csv']
+    temp_argv = ['conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv', 'input/2021_02_19/14/1/acc.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl1.csv', 'input/2021_02_19/14/1/ftr.csv']
     #  model_path, pos_path, vel_path, acc_path, trq_path, grf_l_path, grf_r_path, conditions_path, output_folder_path = sys.argv[1:]
     output_folder_path = OUTPUT
     robot = Robot(temp_argv[0])
@@ -52,65 +52,93 @@ if __name__ == '__main__':
     robot.create_contacts(experiment)
 
     Color.green_print("Running PI Center of Pressure")
-    cop = cop.Cop(output_folder_path, robot=robot)
-    is_ok = cop.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        cop = cop.Cop(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = cop.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
+
 
     Color.green_print("Running PI Capture Point")
-    cap = cap.Cap(output_folder_path, robot=robot, experiment=experiment)
-    is_ok = cap.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        cap = cap.Cap(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = cap.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Foot Placement Estimator")
-    fpe = fpe.Fpe(output_folder_path, robot=robot, experiment=experiment)
-    is_ok = fpe.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        fpe = fpe.Fpe(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = fpe.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Zero Moment Point")
-    zmp = zmp.Zmp(output_folder_path, robot=robot, experiment=experiment)
-    is_ok = zmp.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        zmp = zmp.Zmp(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = zmp.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Center of Mass")
-    com = com.Com(output_folder_path, robot=robot, experiment=experiment)
-    com.performance_indicator()
-    is_ok = com.loc()
-    if not is_ok == 0:
-        sys.exit(is_ok)
-    is_ok = com.vel()
-    if not is_ok == 0:
-        sys.exit(is_ok)
-    is_ok = com.acc()
-    if not is_ok == 0:
-        sys.exit(is_ok)
-    is_ok = com.ang_mom()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        com = com.Com(output_folder_path, robot=robot, experiment=experiment)
+        com.performance_indicator()
+        is_ok = com.loc()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+        is_ok = com.vel()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+        is_ok = com.acc()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+        is_ok = com.ang_mom()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Base Orientation Error")
-    base_err = base_orientation_err.BaseOrientationError(output_folder_path, robot=robot, experiment=experiment)
-    is_ok = base_err.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        base_err = base_orientation_err.BaseOrientationError(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = base_err.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Impact")
-    impact = impact.Impact(output_folder_path, robot=robot)
-    is_ok = impact.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        impact = impact.Impact(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = impact.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Distance Travelled")
-    distance = distance.DistanceTravelled(output_folder_path, robot=robot, experiment=experiment)
-    is_ok = distance.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        distance = distance.DistanceTravelled(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = distance.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')
 
     Color.green_print("Running PI Foot Contact Velocities")
-    fc_vel = foot_contact_velocity.FootContactVelocity(output_folder_path, robot=robot, experiment=experiment)
-    is_ok = fc_vel.performance_indicator()
-    if not is_ok == 0:
-        sys.exit(is_ok)
+    try:
+        fc_vel = foot_contact_velocity.FootContactVelocity(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = fc_vel.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        print('Skipping PI')

@@ -7,7 +7,7 @@ Calculates the foot placement estimator and corresponding performance indicators
 __author__ = ["Felix Aller", "Monika Harant"]
 __copyright__ = "Copyright 2021, EUROBENCH Project"
 __credits__ = ["Monika Harant", "Adrià Roig", "Matthew Millard", "Martin Felis"]
-__license__ = "BSD-2"
+__license__ = "BSD-2-Clause"
 __version__ = "0.2"
 __maintainer__ = "Felix Aller"
 __email__ = "felix.aller@ziti.uni-heidelberg.de"

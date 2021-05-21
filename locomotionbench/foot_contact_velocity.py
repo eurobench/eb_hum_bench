@@ -7,7 +7,7 @@ Calculates the angular and linear velocity of the foot contact.
 __author__ = ["Felix Aller", "Adrià Roig"]
 __copyright__ = "Copyright 2021, EUROBENCH Project"
 __credits__ = "Martin Felis"
-__license__ = "BSD-2"
+__license__ = "BSD-2-Clause"
 __version__ = "0.2"
 __maintainer__ = "Felix Aller"
 __email__ = "felix.aller@ziti.uni-heidelberg.de"

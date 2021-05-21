@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+gait_segmentation.py:
+Classify different phases of gait into single and double support phases.
+"""
+__author__ = ["Felix Aller", "Monika Harant"]
+__copyright__ = "Copyright 2021, EUROBENCH Project"
+__credits__ = "Martin Felis"
+__license__ = "BSD-2-Clause"
+__version__ = "0.4"
+__maintainer__ = "Felix Aller"
+__email__ = "felix.aller@ziti.uni-heidelberg.de"
+__status__ = "Development"
+
 import numpy as np
 import pandas as pd
 from csaps import csaps

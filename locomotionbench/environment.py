@@ -7,21 +7,25 @@ Creates the experimental environment by parsing the data output files, robot inf
 __author__ = ["Felix Aller", "Monika Harant"]
 __copyright__ = "Copyright 2021, EUROBENCH Project"
 __credits__ = ["Monika Harant", "Adrià Roig", "Martin Felis"]
-__license__ = "BSD-2"
+__license__ = "BSD-2-Clause"
 __version__ = "0.4"
 __maintainer__ = "Felix Aller"
 __email__ = "felix.aller@ziti.uni-heidelberg.de"
 __status__ = "Development"
 
+import sys
+
 import rbdl
 import yaml
 import pandas as pd
 import numpy as np
+import os
 from csaps import csaps
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import MultiPoint
 from locomotionbench.performance_indicator import timing
+
 
 class Robot:
     def __init__(self, conf_file_):
@@ -60,27 +64,41 @@ class Robot:
         """
         segment the complete gait according to 3-phases: single support l/r and double support
         """
-        pos = experiment_.files['pos']
-        vel = experiment_.files['vel']
-        acc = experiment_.files['acc']
-        ftl = experiment_.files['ftl']
-        ftr = experiment_.files['ftr']
+
         lead_time = experiment_.lead_time.to_numpy().flatten()
+        pos = experiment_.get_file('pos')
+        vel = experiment_.get_file('vel')
+        acc = experiment_.get_file('acc')
 
-        # l_upper = np.zeros(len(lead_time))
-        # r_upper = np.zeros(len(lead_time))
-        smooth = 0.99
+        if experiment_.files_not_provided.count('ftl') == 0 and experiment_.files_not_provided.count('ftr') == 0:
+            ftl = experiment_.get_file('ftl')
+            ftr = experiment_.get_file('ftr')
 
-        # TODO: parameterize weight threshold
+            # l_upper = np.zeros(len(lead_time))
+            # r_upper = np.zeros(len(lead_time))
+            smooth = 0.99
 
-        up = -(self.mass * 0.2 * self.gravity[2])
+            # TODO: parameterize weight threshold
 
-        fl_ft = np.array(ftl['force_z'])
-        fr_ft = np.array(ftr['force_z'])
-        fl_ft_spl = csaps(lead_time, np.array(ftl['force_z']), smooth=smooth)
-        fl_ft_smooth = fl_ft_spl(lead_time)
-        fr_ft_spl = csaps(lead_time, np.array(ftr['force_z']), smooth=smooth)
-        fr_ft_smooth = fr_ft_spl(lead_time)
+            up = -(self.mass * 0.2 * self.gravity[2])
+
+            fl_ft = np.array(ftl['force_z'])
+            fr_ft = np.array(ftr['force_z'])
+            fl_ft_spl = csaps(lead_time, np.array(ftl['force_z']), smooth=smooth)
+            fl_ft_smooth = fl_ft_spl(lead_time)
+            fr_ft_spl = csaps(lead_time, np.array(ftr['force_z']), smooth=smooth)
+            fr_ft_smooth = fr_ft_spl(lead_time)
+
+            # fl_vel = result[:, 2, :]
+            # fr_vel = result[:, 3, :]
+
+            # Identify gait phase based on the force torque acting on the the feet
+            l_upper = [i if j > up else -999 for i in fl_ft for j in fl_ft_smooth]
+            r_upper = [i if j > up else -999 for i in fr_ft for j in fr_ft_smooth]
+        else:
+            l_upper = [0] * len(lead_time)
+            r_upper = [0] * len(lead_time)
+        # TODO: parameterize cut off parameters
 
         result = [self.get_pos_and_vel(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(qddot))
                   for q, qdot, qddot in
@@ -91,14 +109,6 @@ class Robot:
         result = np.array(result)
         fl_pos = result[:, 0, :]
         fr_pos = result[:, 1, :]
-        # fl_vel = result[:, 2, :]
-        # fr_vel = result[:, 3, :]
-
-        # Identify gait phase based on the force torque acting on the the feet
-        l_upper = [i if j > up else -999 for i in fl_ft for j in fl_ft_smooth]
-        r_upper = [i if j > up else -999 for i in fr_ft for j in fr_ft_smooth]
-
-        # TODO: parameterize cut off parameters
 
         # Identify gait phase based on change of position of the feet in gait direction
         fl_pos_x = np.array([row[0] for row in fl_pos])
@@ -188,17 +198,29 @@ class Robot:
         double_support = self.phases.query('double == True').index.tolist()
         pos = experiment_.files['pos']
         # vel = experiment_.files['vel']
-        ftl = experiment_.files['ftl']
-        ftr = experiment_.files['ftr']
+        no_force_torque = False
+        if experiment_.files_not_provided.count('ftl') == 0 and experiment_.files_not_provided.count('ftr') == 0:
+            ftl = experiment_.files['ftl']
+            ftr = experiment_.files['ftr']
+        else:
+            no_force_torque = True
         for index, value in experiment_.lead_time.itertuples():
             cos = None
             q = np.array(pos.loc[index].drop('time'))
             # qdot = np.array(vel.loc[index].drop('time'))
+
+            if not no_force_torque:
+                force_l = np.array(ftl.loc[index, ['force_x', 'force_y', 'force_z']])
+                torque_l = np.array(ftl.loc[index, ['torque_x', 'torque_y', 'torque_z']])
+                force_r = np.array(ftr.loc[index, ['force_x', 'force_y', 'force_z']])
+                torque_r = np.array(ftr.loc[index, ['torque_x', 'torque_y', 'torque_z']])
+            else:
+                force_l, torque_l, force_r, torque_r = None, None, None, None
             if index in left_single_support:
                 foot1 = FootContact(self.body_map.index(self.l_foot) + 1, self.relative_sole_pos,
                                     self.sole_l,
-                                    self.foot_r_c, np.array(ftl.loc[index, ['force_x', 'force_y', 'force_z']]),
-                                    np.array(ftl.loc[index, ['torque_x', 'torque_y', 'torque_z']]))
+                                    self.foot_r_c, force_l, torque_l
+                                    )
                 foot2 = FootContact()
                 self.phases.loc[index, ['fl_obj']] = foot1
                 self.phases.loc[index, ['fr_obj']] = foot2
@@ -208,8 +230,7 @@ class Robot:
 
                 foot1 = FootContact(self.body_map.index(self.r_foot) + 1, self.relative_sole_pos,
                                     self.sole_r,
-                                    self.foot_r_c, np.array(ftr.loc[index, ['force_x', 'force_y', 'force_z']]),
-                                    np.array(ftr.loc[index, ['torque_x', 'torque_y', 'torque_z']]))
+                                    self.foot_r_c, force_r, torque_r)
                 foot2 = FootContact()
                 self.phases.loc[index, ['fr_obj']] = foot1
                 self.phases.loc[index, ['fl_obj']] = foot2
@@ -218,12 +239,10 @@ class Robot:
             elif index in double_support:
                 foot1 = FootContact(self.body_map.index(self.l_foot) + 1, self.relative_sole_pos,
                                     self.sole_l,
-                                    self.foot_r_c, np.array(ftl.loc[index, ['force_x', 'force_y', 'force_z']]),
-                                    np.array(ftl.loc[index, ['torque_x', 'torque_y', 'torque_z']]))
+                                    self.foot_r_c, force_l, force_r)
                 foot2 = FootContact(self.body_map.index(self.r_foot) + 1, self.relative_sole_pos,
                                     self.sole_r,
-                                    self.foot_r_c, np.array(ftr.loc[index, ['force_x', 'force_y', 'force_z']]),
-                                    np.array(ftr.loc[index, ['torque_x', 'torque_y', 'torque_z']]))
+                                    self.foot_r_c, force_l, force_r)
                 cos = np.multiply(1 / 2, (foot1.get_cos(self.model, q) + foot2.get_cos(self.model, q)))
                 self.phases.loc[index, ['fl_obj']] = foot1
                 self.phases.loc[index, ['fr_obj']] = foot2
@@ -311,7 +330,6 @@ class Robot:
     def distance_to_support_polygon(self, q_, poi_, foot1_, foot2_=None):
 
         if foot2_.id is None:
-
             foot1_ori_ = rbdl.CalcBodyWorldOrientation(self.model, q_, foot1_.id, True)
             # point of interest with respect to the frame of foot1
             point_ = rbdl.CalcBaseToBodyCoordinates(self.model, q_, foot1_.id, poi_)
@@ -334,9 +352,7 @@ class Robot:
                 return distance
             else:
                 return -distance
-
         else:
-
             return self.distance_to_double_support(q_, poi_, foot1_, foot2_)
 
 
@@ -391,24 +407,49 @@ class Experiment:
         grf_right.csv
         conditions.yaml
         """
-        self.files = {'pos': pd.read_csv(file_names_[0], sep=separator_),
-                      'vel': pd.read_csv(file_names_[1], sep=separator_),
-                      'acc': pd.read_csv(file_names_[2], sep=separator_),
-                      'trq': pd.read_csv(file_names_[3], sep=separator_),
-                      'ftl': pd.read_csv(file_names_[4], sep=separator_),
-                      'ftr': pd.read_csv(file_names_[5], sep=separator_)}
+        self.files = {}
+        self.files_not_provided = []
+        self.files_not_provided.append(self.open_file('pos', file_names_[0], separator_))
+        self.files_not_provided.append(self.open_file('vel', file_names_[1], separator_))
+        self.files_not_provided.append(self.open_file('acc', file_names_[2], separator_))
+        self.files_not_provided.append(self.open_file('trq', file_names_[3], separator_))
+        self.files_not_provided.append(self.open_file('ftl', file_names_[4], separator_))
+        self.files_not_provided.append(self.open_file('ftr', file_names_[5], separator_))
+
         # self.files['conditions'] = yaml.load(file_names_[6], Loader=yaml.FullLoader)
         # TODO check order for all files in a smart way
-        self.col_names = list(self.files['pos'].columns)
+        self.col_names = list(self.get_file('pos').columns)
         self.col_names.remove('time')
         if body_map_ != self.col_names:
-            self.files['pos'] = self.files['pos'].reindex(columns=['time'] + body_map_)
-            self.files['vel'] = self.files['vel'].reindex(columns=['time'] + body_map_)
-            self.files['acc'] = self.files['acc'].reindex(columns=['time'] + body_map_)
-            self.files['trq'] = self.files['trq'].reindex(columns=['time'] + body_map_)
+            self.files['pos'] = self.get_file('pos').reindex(columns=['time'] + body_map_)
+            self.files['vel'] = self.get_file('vel').reindex(columns=['time'] + body_map_)
+            if 'acc' not in self.files_not_provided:
+                self.files['acc'] = self.get_file('acc').reindex(columns=['time'] + body_map_)
+            if 'trq' not in self.files_not_provided:
+                self.files['trq'] = self.get_file('trq').reindex(columns=['time'] + body_map_)
 
         # TODO check if column time = lead time for all files
-        self.lead_time = self.files['pos'].loc[:, ['time']]
+        self.lead_time = self.get_file('pos').loc[:, ['time']]
+
+    def open_file(self, file_type, file, separator):
+        try:
+            self.files[file_type] = pd.read_csv(file, sep=separator)
+        except FileNotFoundError as err:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(f"{Color.WARNING}{err} is that correct? --- {fname}, line: {exc_tb.tb_lineno}{Color.ENDC}")
+            return file_type
+
+    def get_file(self, file_name):
+        try:
+            file = self.files[file_name]
+        except KeyError:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            Color.err_print(
+                f"{file_name} file not found but required.--- {fname}, line: {exc_tb.tb_lineno}{Color.ENDC}")
+            sys.exit()
+        return file
 
 
 class Color:
@@ -425,6 +466,15 @@ class Color:
     @staticmethod
     def green_print(text):
         print(f"{Color.OKGREEN}{text}{Color.ENDC}")
+
     @staticmethod
     def cyan_print(text):
         print(f"{Color.OKCYAN}{text}{Color.ENDC}")
+
+    @staticmethod
+    def err_print(text):
+        print(f"{Color.FAIL}{text}{Color.ENDC}")
+
+    @staticmethod
+    def warning_print(text):
+        print(f"{Color.FAIL}{text}{Color.ENDC}")
