@@ -27,26 +27,30 @@ from shapely.geometry import MultiPoint
 from locomotionbench.performance_indicator import timing
 
 
+# Robot class to collect all the information for the used robot to expose it to performance calculation routine
 class Robot:
     def __init__(self, conf_file_):
+        # open yaml file containing the required information
         with open(conf_file_, 'r') as f:
             conf = yaml.load(f, Loader=yaml.FullLoader)
+
+        # robot model, used by most of the pi
         self.model = rbdl.loadModel(conf['modelpath'] + conf['robotmodel'], floating_base=True, verbose=False)
-        self.base_link = conf['base_link']
-        self.gravity = conf['gravity']
-        self.l_foot = conf['foot_l']
-        self.r_foot = conf['foot_r']
-        self.torso_link = conf['torso_link']
-        self.relative_sole_pos = conf['sole_pos']
-        self.leg_length = conf['leg_length']
-        self.mass = conf['mass']
-        self.sole_l = conf['sole_shape_l']
-        self.sole_r = conf['sole_shape_r']
+        self.base_link = conf['base_link']  # base link or root of the kinematic chain
+        self.gravity = conf['gravity']  # gravity as a list of x, y, z
+        self.l_foot = conf['foot_l']  # link name of the left foot in model
+        self.r_foot = conf['foot_r']  # link name of the right foot in model
+        self.torso_link = conf['torso_link']  # link name of the torso in model
+        self.relative_sole_pos = conf['sole_pos']  # relative position of the robot sole with respect to the foot link
+        self.leg_length = conf['leg_length']  # leg length of the robot for normalization
+        self.mass = conf['mass']  # mass of the robot for normalization
+        self.sole_l = conf['sole_shape_l']  # shape of the left sole of the robot: distances between corner points
+        self.sole_r = conf['sole_shape_r']  # shape of the left sole of the robot: distances between corner points
         #  TODO: really need this?
-        self.foot_r_c = [0.061129, 0.003362, -0.004923]
-        self.body_map = self.body_map_sorted()
-        self.phases = None
-        self.cos = pd.DataFrame(columns=['x', 'y', 'z'], dtype='float')
+        self.foot_r_c = [0.061129, 0.003362, -0.004923]  # position of the com of the foot
+        self.body_map = self.body_map_sorted()  # sort body map according to body ids
+        self.phases = None  # init gait phases
+        self.cos = pd.DataFrame(columns=['x', 'y', 'z'], dtype='float')  # init data frame for center of support
 
     def body_map_sorted(self):
         orig = self.model.mBodyNameMap
@@ -59,54 +63,61 @@ class Robot:
             order.append(item_.strip().replace('_link', '_joint'))
         return order
 
+    def get_body_map(self):
+        return self.body_map
+
     @timing
     def gait_segmentation(self, experiment_, remove_ds=False, remove_hs=False):
         """
         segment the complete gait according to 3-phases: single support l/r and double support
         """
 
-        lead_time = experiment_.lead_time.to_numpy().flatten()
-        pos = experiment_.get_file('pos')
-        vel = experiment_.get_file('vel')
+        lead_time = experiment_.lead_time.to_numpy().flatten()  # get array of all timestamps from experimental data
+        pos = experiment_.get_file('pos')   # load pos data
+        vel = experiment_.get_file('vel')   # load vel data
 
+        # check if force torque information is provided. If so use it for gait segmentation
         if experiment_.files_not_provided.count('ftl') == 0 and experiment_.files_not_provided.count('ftr') == 0:
-            ftl = experiment_.get_file('ftl')
-            ftr = experiment_.get_file('ftr')
+            ftl = experiment_.get_file('ftl')  # load force torque data of left sensor
+            ftr = experiment_.get_file('ftr')  # load force torque data of right sensor
 
             # l_upper = np.zeros(len(lead_time))
             # r_upper = np.zeros(len(lead_time))
-            smooth = 0.99
+            smooth = 0.99  # smoothing factor for cubic spline fit
 
-            # TODO: parameterize weight threshold
+            # TODO: better way to estimate boundaries: e.g. random forests
+            up = -(self.mass * 0.2 * self.gravity[2])  # weight threshold based on the robot weight
 
-            up = -(self.mass * 0.2 * self.gravity[2])
-
-            fl_ft = np.array(ftl['force_z'])
-            fr_ft = np.array(ftr['force_z'])
-            fl_ft_spl = csaps(lead_time, np.array(ftl['force_z']), smooth=smooth)
+            fl_ft = np.array(ftl['force_z'])  # get vertical force
+            fr_ft = np.array(ftr['force_z'])  # get vertical force
+            fl_ft_spl = csaps(lead_time, np.array(ftl['force_z']), smooth=smooth)  # fit smoothing spline to force data
             fl_ft_smooth = fl_ft_spl(lead_time)
-            fr_ft_spl = csaps(lead_time, np.array(ftr['force_z']), smooth=smooth)
+            fr_ft_spl = csaps(lead_time, np.array(ftr['force_z']), smooth=smooth)  # fit smoothing spline to force data
             fr_ft_smooth = fr_ft_spl(lead_time)
 
             # fl_vel = result[:, 2, :]
             # fr_vel = result[:, 3, :]
 
             # Identify gait phase based on the force torque acting on the the feet
-            l_upper = [i if j > up else -999 for i in fl_ft for j in fl_ft_smooth]
-            r_upper = [i if j > up else -999 for i in fr_ft for j in fr_ft_smooth]
+            l_upper = [i if j > up else -999 for i in fl_ft for j in fl_ft_smooth]  # find contact points left
+            r_upper = [i if j > up else -999 for i in fr_ft for j in fr_ft_smooth]  # find contact points right
         else:
+            # if no force files were provided set contact points to zero to be ignored later on
             l_upper = [0] * len(lead_time)
             r_upper = [0] * len(lead_time)
+
         # TODO: parameterize cut off parameters
 
+        # obtain foot_contact_point_l, foot_contact_point_r, foot_velocity_l, foot_velocity_r
+        # used for position and velocity based gait segmentation
         result = [self.get_pos_and_vel(np.ascontiguousarray(q), np.ascontiguousarray(qdot))
                   for q, qdot in
                   zip(pos[experiment_.col_names].to_numpy(), vel[experiment_.col_names].to_numpy())
                   ]
 
         result = np.array(result)
-        fl_pos = result[:, 0, :]
-        fr_pos = result[:, 1, :]
+        fl_pos = result[:, 0, :]  # allocation
+        fr_pos = result[:, 1, :]  # allocation
 
         # Identify gait phase based on change of position of the feet in gait direction
         fl_pos_x = np.array([row[0] for row in fl_pos])
@@ -131,23 +142,26 @@ class Robot:
         # fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
         # phases = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
 
+        # assign different phases based on the above created criteria
         self.phases = self.assign_phase(experiment_.lead_time, fl_pos_x_dot_cut, fl_pos_z_dot_cut,
                                         np.array(l_upper), fr_pos_x_dot_cut, fr_pos_z_dot_cut, np.array(r_upper))
 
+        # if applicable and requested: cut of double support phases at start and end and additionally also the first and
+        # last halfstep
         if remove_ds is True:
             start_ds_end, end_ds_start = self.crop_start_end_phases()
             if remove_hs is True:
                 remove_front, remove_back = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
 
     def get_pos_and_vel(self, q, qdot):
-
+        # calculate foot position of left and right foot
         foot_contact_point_l = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                               self.body_map.index(self.l_foot) + 1,
                                                               np.array(self.relative_sole_pos), True)
         foot_contact_point_r = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                               self.body_map.index(self.r_foot) + 1,
                                                               np.array(self.relative_sole_pos), True)
-
+        # calculate foot velocity of left and right foot
         foot_velocity_l = rbdl.CalcPointVelocity(self.model, q, qdot, self.body_map.index(self.l_foot) + 1,
                                                  np.array(self.relative_sole_pos), True)
 
@@ -394,7 +408,7 @@ class FootContact:
 
 
 class Experiment:
-    def __init__(self, file_names_, body_map_, separator_=';'):
+    def __init__(self, file_names_, separator_=';'):
         """
         joint_states.csv
         joint_velocities.csv
@@ -417,22 +431,29 @@ class Experiment:
         # TODO check order for all files in a smart way
         self.col_names = list(self.get_file('pos').columns)
         self.col_names.remove('time')
-        if body_map_ != self.col_names:
-            self.files['pos'] = self.get_file('pos').reindex(columns=['time'] + body_map_)
-            self.files['vel'] = self.get_file('vel').reindex(columns=['time'] + body_map_)
-            if 'acc' not in self.files_not_provided:
-                self.files['acc'] = self.get_file('acc').reindex(columns=['time'] + body_map_)
-            if 'trq' not in self.files_not_provided:
-                self.files['trq'] = self.get_file('trq').reindex(columns=['time'] + body_map_)
 
         # TODO check if column time = lead time for all files
         self.lead_time = self.get_file('pos').loc[:, ['time']]
+
+    def are_columns_matching(self, body_map):
+        if body_map != self.col_names:
+            return False
+        return True
+
+    def reindex_columns(self, body_map):
+        # TODO check order for all files in a smart way
+        self.files['pos'] = self.get_file('pos').reindex(columns=['time'] + body_map)
+        self.files['vel'] = self.get_file('vel').reindex(columns=['time'] + body_map)
+        if 'acc' not in self.files_not_provided:
+            self.files['acc'] = self.get_file('acc').reindex(columns=['time'] + body_map)
+        if 'trq' not in self.files_not_provided:
+            self.files['trq'] = self.get_file('trq').reindex(columns=['time'] + body_map)
 
     def open_file(self, file_type, file, separator):
         try:
             self.files[file_type] = pd.read_csv(file, sep=separator)
         except FileNotFoundError as err:
-            print(f"{Color.WARNING}{err} is that correct?)")
+            print(f"{Color.WARNING}WARNING: {err.strerror} '{err.filename}' for {file_type} - is that correct?)")
             return file_type
 
     def get_file(self, file_name):

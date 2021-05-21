@@ -17,8 +17,9 @@ from abc import ABC, abstractmethod
 from functools import wraps
 from time import time
 import numpy as np
-import sys
 
+
+#  debugging function to use @timing decorator to obtain runtime information of individual performance indicators
 def timing(f):
     @wraps(f)
     def wrap(*args, **kw):
@@ -31,11 +32,12 @@ def timing(f):
     return wrap
 
 
+#  Template for implementing a performance indicator
 class PerformanceIndicator(ABC):
 
     @property
     @abstractmethod
-    def pi_name(self):
+    def pi_name(self):  # name of PI; currently not used
         raise NotImplementedError()
 
     @pi_name.setter
@@ -45,7 +47,7 @@ class PerformanceIndicator(ABC):
 
     @property
     @abstractmethod
-    def required(self):
+    def required(self):  # list of required files for computation of performance indicator
         raise NotImplementedError()
 
     @required.setter
@@ -56,60 +58,65 @@ class PerformanceIndicator(ABC):
     @abstractmethod
     def __init__(self, output_folder_path, robot=None, experiment=None):
 
+        # set name of classes to distinguish in read_data()
         self.cl_name_robot = 'Robot'
         self.cl_name_experiment = 'Experiment'
+
+        # set output folder path for results
         self.output_folder = output_folder_path
 
+        # check if robot was provided
+        # TODO: this is currently always the case for robot and experiment, maybe remove the None option
         if robot:
             self.robot = robot
-            try:
+            try:  # pass down error if files were not found in order to skip the metric calculation
                 self.read_data(self.required, robot)
             except FileNotFoundError:
                 raise FileNotFoundError
         if experiment:
             self.experiment = experiment
-            try:
+            try:  # pass down error if files were not found in order to skip the metric calculation
                 self.read_data(self.required, experiment)
             except FileNotFoundError:
                 raise FileNotFoundError
 
     def read_data(self, require_, data_):
-        name = type(data_).__name__
+        name = type(data_).__name__  # are we looking at robot or experiment data
         for item in require_:
-            if name == self.cl_name_experiment:
+            if name == self.cl_name_experiment:  # if experiment
+                # was the file provided / could be read when experiment class was created
                 if item in self.experiment.files_not_provided:
                     print(f"\033[91m{item} is not provided but required.\033[0m")
-                    raise FileNotFoundError
+                    raise FileNotFoundError  # pass down error
                 if item == 'pos':
-                    self.q = data_.files[item][self.experiment.col_names].to_numpy()
+                    self.q = data_.get_file(item)[self.experiment.col_names].to_numpy()
                 if item == 'vel':
-                    self.qdot = data_.files[item][self.experiment.col_names].to_numpy()
+                    self.qdot = data_.get_file(item)[self.experiment.col_names].to_numpy()
                 if item == 'acc':
-                    self.qddot = data_.files[item][self.experiment.col_names].to_numpy()
+                    self.qddot = data_.get_file(item)[self.experiment.col_names].to_numpy()
                 if item == 'trq':
-                    self.trq = data_.files[item]
+                    self.trq = data_.get_file(item)
                 if item == 'ftl':
-                    self.ftl = data_.files[item]
+                    self.ftl = data_.get_file(item)
                 if item == 'ftr':
-                    self.ftr = data_.files[item]
-            elif name == self.cl_name_robot:
+                    self.ftr = data_.get_file(item)
+            elif name == self.cl_name_robot:  # if robot
                 if item == 'cos':
                     self.cos = data_.cos.to_numpy()
                 if item == 'phases':
                     self.phases = data_.phases
 
-    # @abstractmethod
-    # def verify_required(self):
-    #     raise NotImplementedError("Please Implement this method")
-
+    # implement standard call of the performance indicator from the created object
     @abstractmethod
     def performance_indicator(self):
         raise NotImplementedError("Please Implement this method")
 
+    # implement call of actual metric and return it to performance indicator
     @abstractmethod
     def run_pi(self):
         raise NotImplementedError("Please Implement this method")
 
+    # write file in output path
     def write_file(self, filename, file_content):
         try:
             with open(self.output_folder + filename, 'w') as file:
@@ -120,6 +127,7 @@ class PerformanceIndicator(ABC):
             print("Failed to write output to file \"{}\"".format(filename))
             raise
 
+    # convert numerical type into string
     @staticmethod
     def input_to_string(input_values):
         try:
@@ -137,6 +145,7 @@ class PerformanceIndicator(ABC):
             raise
         return out
 
+    # export data to scalar
     def export_scalar(self, values, filename=None):
         file_out = '''type: \'scalar\'\nvalue: {}\n'''.format(values)
 
@@ -145,6 +154,7 @@ class PerformanceIndicator(ABC):
 
         return file_out
 
+    # export data to vector
     def export_vector(self, values, filename=None, labels=None):
         np_vec_str = self.input_to_string(values)
 
@@ -162,6 +172,7 @@ class PerformanceIndicator(ABC):
 
         return file_out
 
+    # export data to matrix
     def export_matrix(self, values, filename=None, row_labels=None, col_labels=None):
 
         np_vec_str = self.input_to_string(values)
