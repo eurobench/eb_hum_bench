@@ -41,7 +41,7 @@ if __name__ == '__main__':
     #     print(USAGE)
     #     sys.exit(-1)
 
-    temp_argv = ['conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv', 'input/2021_02_19/14/1/acc.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl1.csv', 'input/2021_02_19/14/1/ftr.csv']
+    temp_argv = ['conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv', 'input/2021_02_19/14/1/acc1.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl1.csv', 'input/2021_02_19/14/1/ftr.csv']
     #  model_path, pos_path, vel_path, acc_path, trq_path, grf_l_path, grf_r_path, conditions_path, output_folder_path = sys.argv[1:]
     output_folder_path = OUTPUT
     robot = Robot(temp_argv[0])
@@ -58,8 +58,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
-
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Capture Point")
     try:
@@ -68,7 +67,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Foot Placement Estimator")
     try:
@@ -77,7 +76,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Zero Moment Point")
     try:
@@ -86,7 +85,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Center of Mass")
     try:
@@ -105,7 +104,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Base Orientation Error")
     try:
@@ -114,7 +113,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Impact")
     try:
@@ -123,7 +122,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Distance Travelled")
     try:
@@ -132,7 +131,7 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')
 
     Color.green_print("Running PI Foot Contact Velocities")
     try:
@@ -141,4 +140,4 @@ if __name__ == '__main__':
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
-        print('Skipping PI')
+        Color.warning_print('Skipping PI')

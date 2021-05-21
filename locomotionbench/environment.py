@@ -68,7 +68,6 @@ class Robot:
         lead_time = experiment_.lead_time.to_numpy().flatten()
         pos = experiment_.get_file('pos')
         vel = experiment_.get_file('vel')
-        acc = experiment_.get_file('acc')
 
         if experiment_.files_not_provided.count('ftl') == 0 and experiment_.files_not_provided.count('ftr') == 0:
             ftl = experiment_.get_file('ftl')
@@ -100,10 +99,9 @@ class Robot:
             r_upper = [0] * len(lead_time)
         # TODO: parameterize cut off parameters
 
-        result = [self.get_pos_and_vel(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(qddot))
-                  for q, qdot, qddot in
-                  zip(pos[experiment_.col_names].to_numpy(), vel[experiment_.col_names].to_numpy(),
-                      acc[experiment_.col_names].to_numpy())
+        result = [self.get_pos_and_vel(np.ascontiguousarray(q), np.ascontiguousarray(qdot))
+                  for q, qdot in
+                  zip(pos[experiment_.col_names].to_numpy(), vel[experiment_.col_names].to_numpy())
                   ]
 
         result = np.array(result)
@@ -141,21 +139,20 @@ class Robot:
             if remove_hs is True:
                 remove_front, remove_back = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
 
-    def get_pos_and_vel(self, q, qdot, qddot):
-        rbdl.UpdateKinematics(self.model, q, qdot, qddot)
+    def get_pos_and_vel(self, q, qdot):
 
         foot_contact_point_l = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                               self.body_map.index(self.l_foot) + 1,
-                                                              np.array(self.relative_sole_pos), False)
+                                                              np.array(self.relative_sole_pos), True)
         foot_contact_point_r = rbdl.CalcBodyToBaseCoordinates(self.model, q,
                                                               self.body_map.index(self.r_foot) + 1,
-                                                              np.array(self.relative_sole_pos), False)
+                                                              np.array(self.relative_sole_pos), True)
 
         foot_velocity_l = rbdl.CalcPointVelocity(self.model, q, qdot, self.body_map.index(self.l_foot) + 1,
-                                                 np.array(self.relative_sole_pos), False)
+                                                 np.array(self.relative_sole_pos), True)
 
         foot_velocity_r = rbdl.CalcPointVelocity(self.model, q, qdot, self.body_map.index(self.r_foot) + 1,
-                                                 np.array(self.relative_sole_pos), False)
+                                                 np.array(self.relative_sole_pos), True)
 
         return [foot_contact_point_l, foot_contact_point_r, foot_velocity_l, foot_velocity_r]
 
@@ -435,9 +432,7 @@ class Experiment:
         try:
             self.files[file_type] = pd.read_csv(file, sep=separator)
         except FileNotFoundError as err:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(f"{Color.WARNING}{err} is that correct? --- {fname}, line: {exc_tb.tb_lineno}{Color.ENDC}")
+            print(f"{Color.WARNING}{err} is that correct?)")
             return file_type
 
     def get_file(self, file_name):
@@ -477,4 +472,4 @@ class Color:
 
     @staticmethod
     def warning_print(text):
-        print(f"{Color.FAIL}{text}{Color.ENDC}")
+        print(f"{Color.WARNING}{text}{Color.ENDC}")
