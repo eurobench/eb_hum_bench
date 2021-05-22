@@ -106,6 +106,10 @@ class PerformanceIndicator(ABC):
                 if item == 'phases':
                     self.phases = data_.phases
 
+    def normalize(self, data):
+        self.len = self.experiment.lead_time
+
+
     # implement standard call of the performance indicator from the created object
     @abstractmethod
     def performance_indicator(self):
