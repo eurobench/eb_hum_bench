@@ -13,7 +13,6 @@ __maintainer__ = "Felix Aller"
 __email__ = "felix.aller@ziti.uni-heidelberg.de"
 __status__ = "Development"
 
-import sys
 from locomotionbench.environment import *
 from locomotionbench import cap, cop, fpe, zmp, com, base_orientation_err, impact, distance, foot_contact_velocity
 
@@ -25,10 +24,10 @@ OUTPUT = 'output/test/'
 
 USAGE = """usage: i3sa robot_model.lua joint_states.csv joint_velocities.csv joint_accelerations.csv joint_torques.csv grf_left.csv grf_right.csv conditions.yaml output_dir
 robot_model.lua
-joint_states.csv: TOBEDEFINED
-joint_velocities.csv: TOBEDEFINED
-joint_accelerations.csv: TOBEDEFINED
-joint_torques.csv: TOBEDEFINED
+joint_states.csv: TO BE DEFINED
+joint_velocities.csv: TO BE DEFINED
+joint_accelerations.csv: TO BE DEFINED
+joint_torques.csv: TO BE DEFINED
 grf_left.csv
 grf_right.csv
 conditions.yaml
@@ -47,7 +46,7 @@ if __name__ == '__main__':
                  'input/2021_02_19/14/1/ftr.csv']
     #  model_path, pos_path, vel_path, acc_path, trq_path, grf_l_path, grf_r_path, conditions_path, output_folder_path = sys.argv[1:]
 
-    # temporary static output folger path for debugging in IDE
+    # temporary static output folder path for debugging in IDE
     output_folder_path = OUTPUT
 
     #  create experiment containing the uploaded files
