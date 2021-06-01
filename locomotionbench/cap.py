@@ -17,10 +17,13 @@ from locomotionbench.performance_indicator import *
 import math
 import numpy as np
 import rbdl
+from scipy.integrate import simps
+import statistics
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class Cap(PerformanceIndicator):
-
     _pi_name = 'CAP'
     _required = ['pos', 'vel', 'cos', 'phases']
 
@@ -34,7 +37,8 @@ class Cap(PerformanceIndicator):
 
     def __init__(self, output_folder_path, robot=None, experiment=None):
         super().__init__(output_folder_path, robot, experiment)
-
+        self.raw = pd.DataFrame(columns=['trajectory, distance'])
+        self.results = pd.DataFrame(columns=['mean', 'std', 'percentage_over', 'integral', 'average'])
         self.balance_tk = rbdl.BalanceToolkit()
         self.omega_small = 1e-6
         self.len = len(self.experiment.lead_time)
@@ -42,9 +46,9 @@ class Cap(PerformanceIndicator):
 
     @timing
     def performance_indicator(self):
-        trajectory, result = self.run_pi()
-        if len(result) == self.len:
-            self.export_vector(result, self.filename)
+        trajectory, distances, integrals, aggregates = self.run_pi()
+        # self.__aggregate(distance)
+        if len(distances) == self.len:
             return 0
         else:
             return -1
@@ -55,7 +59,18 @@ class Cap(PerformanceIndicator):
             for q, qdot, cos, obj in
             zip(self.q, self.qdot, self.cos, zip(self.phases[['fl_obj', 'fr_obj']].to_numpy()))
         ])
-        return trajectory, result
+        result = np.array(result)
+        integrals = []
+        aggregates = []
+        for key in self.robot.step_list:
+            temp, temp2 = self.__integrate(result, self.robot.step_list[key])
+            integrals.append(temp)
+            aggregates.append(self.__aggregate(temp))
+
+        self.__plot(result)
+        #plt.plot(self.lead_time, trajectory, marker="x")
+        plt.show()
+        return trajectory, result, integrals, aggregates
 
     def __metric(self, q_, qdot_, cos_, obj=None):
         fpe_output = rbdl.FootPlacementEstimatorInfo()
@@ -72,5 +87,39 @@ class Cap(PerformanceIndicator):
                 foot1, foot2 = foot2, foot1  # swap variables to achieve this
             cap_bos = self.robot.distance_to_support_polygon(q_, cap, foot1, foot2)
             return cap, cap_bos
-
         return cap
+
+    @staticmethod
+    def __integrate(data, steps):
+        # if not data or not steps:
+        #     return None
+        integrals = []
+        temp = []
+        for index_list in steps:
+            integrals.append(simps(data[index_list]))
+            temp.append([statistics.mean(data[index_list]), statistics.stdev(data[index_list])])
+        return integrals, temp
+
+    @staticmethod
+    def __aggregate(data):
+        if not data:
+            return None
+        return [statistics.mean(data), statistics.stdev(data)]
+
+    def __plot(self, data):
+        fig = plt.figure()
+        time = np.array(self.lead_time)
+        color = 'black'
+        for i in range(len(self.lead_time)):
+            if any(i in sl for sl in self.robot.step_list['fl_single']):
+                color = 'blue'
+            elif any(i in sl for sl in self.robot.step_list['fr_single']):
+                color = 'red'
+            elif any(i in sl for sl in self.robot.step_list['fl_double']):
+                color = 'grey'
+            elif any(i in sl for sl in self.robot.step_list['fr_double']):
+                color = 'grey'
+            else:
+                continue
+            plt.plot(i, data[i], color=color, marker="x")
+        plt.show()
