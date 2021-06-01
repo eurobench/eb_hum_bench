@@ -77,6 +77,7 @@ class PerformanceIndicator(ABC):
             self.experiment = experiment
             try:  # pass down error if files were not found in order to skip the metric calculation
                 self.read_data(self.required, experiment)
+                self.lead_time = experiment.lead_time
             except FileNotFoundError:
                 raise FileNotFoundError
 
