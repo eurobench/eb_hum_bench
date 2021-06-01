@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     #  temporary argument list for debugging IDE
     temp_argv = ['conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv',
-                 'input/2021_02_19/14/1/acc1.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl1.csv',
+                 'input/2021_02_19/14/1/acc.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl.csv',
                  'input/2021_02_19/14/1/ftr.csv']
     #  model_path, pos_path, vel_path, acc_path, trq_path, grf_l_path, grf_r_path, conditions_path, output_folder_path = sys.argv[1:]
 
@@ -63,7 +63,12 @@ if __name__ == '__main__':
     Color.green_print('Running Gait Phase Classification')
     #  classify gait phases to single left, single right and double support phases.
     #  possibility to remove first/last double support phase and additionally first/last halfstep leading into the motion
-    robot.gait_segmentation(experiment, remove_ds=True, remove_hs=True)
+    truncate = robot.gait_segmentation(experiment, remove_ds=True, remove_hs=True)
+    if all(truncate):
+        experiment.truncate_lead_time(truncate)
+        experiment.truncate_data(truncate)
+        robot.truncate_phases(truncate)
+        robot.truncate_step_list(truncate)
 
     #  create foot contacts containing all meta information of the contact for each of the different contact phases
     robot.create_contacts(experiment)
