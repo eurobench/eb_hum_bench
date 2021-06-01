@@ -51,6 +51,10 @@ class Robot:
         self.body_map = self.body_map_sorted()  # sort body map according to body ids
         self.phases = None  # init gait phases
         self.cos = pd.DataFrame(columns=['x', 'y', 'z'], dtype='float')  # init data frame for center of support
+        self.step_list = {'fl_single': None,
+                          'fr_single': None,
+                          'fl_double': None,
+                          'fr_double': None}
 
     def body_map_sorted(self):
         orig = self.model.mBodyNameMap
@@ -73,8 +77,8 @@ class Robot:
         """
 
         lead_time = experiment_.lead_time.to_numpy().flatten()  # get array of all timestamps from experimental data
-        pos = experiment_.get_file('pos')   # load pos data
-        vel = experiment_.get_file('vel')   # load vel data
+        pos = experiment_.get_file('pos')  # load pos data
+        vel = experiment_.get_file('vel')  # load vel data
 
         # check if force torque information is provided. If so use it for gait segmentation
         if experiment_.files_not_provided.count('ftl') == 0 and experiment_.files_not_provided.count('ftr') == 0:
@@ -148,10 +152,27 @@ class Robot:
 
         # if applicable and requested: cut of double support phases at start and end and additionally also the first and
         # last halfstep
+        crop = [None, None]
         if remove_ds is True:
             start_ds_end, end_ds_start = self.crop_start_end_phases()
+            crop = [start_ds_end, end_ds_start]
             if remove_hs is True:
-                remove_front, remove_back = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
+                start_ds_hs_end, end_ds_hs_start = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
+                crop = [start_ds_hs_end, end_ds_hs_start]
+
+        # create index lists of individual steps
+        for key in self.step_list:
+            self.step_list[key] = self.create_step_list(self.phases.query(f'{key} == True').index.tolist(), crop)
+
+        return crop
+
+    @staticmethod
+    def create_step_list(phases, crop=None):
+        if not phases:
+            return None
+        step_size = 1
+        step_list = np.split(phases, np.where(np.diff(phases) != step_size)[0] + 1)
+        return step_list
 
     def get_pos_and_vel(self, q, qdot):
         # calculate foot position of left and right foot
@@ -201,6 +222,22 @@ class Robot:
         remove_front = r_f.idxmin() - 1
         remove_back = r_b.idxmin()
         return remove_front, remove_back
+
+    def truncate_phases(self, crop):
+        self.phases = self.phases.truncate(before=crop[0]+1, after=crop[1])
+
+    def truncate_step_list(self, crop):
+        for key in self.step_list:
+            temp = self.step_list[key]
+            buffer = []
+            for item in range(len(temp)):
+                list = temp[item]
+                if any(x > crop[1] for x in list) or any(x < crop[0] for x in list):
+                    continue
+                else:
+                    temp2 = ([value - crop[0]-1 for value in temp[item]])
+                    buffer.append(temp2)
+            self.step_list[key] = buffer
 
     @timing
     def create_contacts(self, experiment_):
@@ -262,30 +299,62 @@ class Robot:
     @staticmethod
     def assign_phase(time, fl_pos_x_dot_cut, fl_pos_z_dot_cut, l_upper, fr_pos_x_dot_cut, fr_pos_z_dot_cut,
                      r_upper):
-        phases = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
+        phases = pd.DataFrame(
+            columns=['fl_single', 'fr_single', 'double', 'fl_double', 'fr_double', 'fl_obj', 'fr_obj'])
         fl_single = np.zeros(len(time), dtype=bool)
         fr_single = np.zeros(len(time), dtype=bool)
         double = np.zeros(len(time), dtype=bool)
-
+        prev_l = np.zeros(len(time), dtype=bool)
+        prev_r = np.zeros(len(time), dtype=bool)
+        prev_value = None
         for index, value in time.itertuples():
+            i = 0
             if fl_pos_x_dot_cut[index] != -1 and fl_pos_z_dot_cut[index] != -1 and l_upper[index] != -999:
                 # and fl_vel_x_cut[j_] != -1
                 fl_single[index] = True
+                buffer = 'fl'
+                i += 1
 
             if fr_pos_x_dot_cut[index] != -1 and fr_pos_z_dot_cut[index] != -1 and r_upper[index] != -999:
                 # and fr_vel_x_cut[j_] != -1:
                 fr_single[index] = True
+                buffer = 'fr'
+                i += 1
+
+            if i <= 1:
+                prev_value = buffer
 
             if fl_single[index] and fr_single[index]:
                 double[index] = True
                 fl_single[index] = False
                 fr_single[index] = False
+                if prev_value == 'fl':
+                    prev_l[index] = True
+                    prev_r[index] = False
+                elif prev_value == 'fr':
+                    prev_l[index] = False
+                    prev_r[index] = True
+                else:
+                    prev_l[index] = False
+                    prev_r[index] = False
+
             elif not fl_single[index] and not fr_single[index]:
                 double[index] = True
+                if prev_value == 'fl':
+                    prev_l[index] = True
+                    prev_r[index] = False
+                elif prev_value == 'fr':
+                    prev_l[index] = False
+                    prev_r[index] = True
+                else:
+                    prev_l[index] = False
+                    prev_r[index] = False
 
         phases['fl_single'] = fl_single
         phases['fr_single'] = fr_single
         phases['double'] = double
+        phases['fl_double'] = prev_l
+        phases['fr_double'] = prev_r
 
         return phases
 
@@ -382,6 +451,9 @@ class FootContact:
         # else:
         #     self.cos, self.omega_v, self.corners_global = None, None, None
 
+    def set_cos(self, cos):
+        self.cos = cos
+
     def get_cos(self, model_, q_, ):
         self.cos = rbdl.CalcBodyToBaseCoordinates(model_, q_, self.id, np.array(self.rel_sole_pos), True)
         return self.cos
@@ -467,6 +539,12 @@ class Experiment:
             sys.exit()
         return file
 
+    def truncate_lead_time(self, crop):
+        self.lead_time = self.lead_time.truncate(before=crop[0]+1, after=crop[1])
+
+    def truncate_data(self, crop):
+        for key in self.files:
+            self.files[key] = self.files[key].truncate(before=crop[0]+1, after=crop[1])
 
 class Color:
     HEADER = '\033[95m'
