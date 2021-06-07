@@ -17,6 +17,8 @@ from abc import ABC, abstractmethod
 from functools import wraps
 from time import time
 import numpy as np
+from scipy.integrate import simps
+import statistics
 
 
 #  debugging function to use @timing decorator to obtain runtime information of individual performance indicators
@@ -107,10 +109,6 @@ class PerformanceIndicator(ABC):
                 if item == 'phases':
                     self.phases = data_.phases
 
-    def normalize(self, data):
-        self.len = self.experiment.lead_time
-
-
     # implement standard call of the performance indicator from the created object
     @abstractmethod
     def performance_indicator(self):
@@ -197,3 +195,56 @@ class PerformanceIndicator(ABC):
             self.write_file(filename, file_out)
 
         return file_out
+
+    @staticmethod
+    def aggregate(data):
+        if all(v == .0 for v in data):
+            return [.0, .0]
+        if data is None:
+            return None
+        return [statistics.mean(data), statistics.stdev(data)]
+
+    @staticmethod
+    def integrate(data, steps=None):
+        if not steps:
+            return simps(data)
+        integrals = []
+        for index_list in steps:
+            integrals.append(simps(data[index_list]))
+        return integrals
+
+    @staticmethod
+    def average_dist(data, steps=None):
+        if not all(data):
+            return None
+        if not steps:
+            return [statistics.mean(data), statistics.stdev(data)]
+        average_dists = []
+        for index_list in steps:
+            average_dists.append(statistics.mean(data[index_list]))
+        return average_dists
+
+    @staticmethod
+    def percentage(data, steps=None):
+        if not all(data):
+            return None
+        if not steps:
+            pos = (len([x for x in data if x >= 0]) / len(data) * 100)
+            return [pos, 100 - pos]
+        pos, neg = [], []
+        for index_list in steps:
+            pos_v = (len([x for x in data[index_list] if x >= 0]) / len(data[index_list]) * 100)
+            pos.append(pos_v)
+            neg.append(100 - pos_v)
+        return pos, neg
+
+    @staticmethod
+    def min_max(data, steps=None):
+        if not all(data):
+            return None
+        if not steps:
+            return min(data), max(data)
+        min_max = []
+        for index_list in steps:
+            min_max.append([min(data[index_list]), max(data[index_list])])
+        return min_max[0], min_max[1]
