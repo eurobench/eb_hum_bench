@@ -43,9 +43,9 @@ class Cap(PerformanceIndicator):
 
     @timing
     def performance_indicator(self):
-        trajectory, distances, integrals, aggregates = self.run_pi()
+        trajectory, distances, integrals_agg, percentage_agg, min_max_agg, average_dist_agg = self.run_pi()
         # self.__aggregate(distance)
-        if len(distances) == self.lead_time:
+        if len(distances) == len(self.lead_time):
             return 0
         else:
             return -1
