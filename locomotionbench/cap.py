@@ -17,8 +17,6 @@ from locomotionbench.performance_indicator import *
 import math
 import numpy as np
 import rbdl
-from scipy.integrate import simps
-import statistics
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -41,36 +39,43 @@ class Cap(PerformanceIndicator):
         self.results = pd.DataFrame(columns=['mean', 'std', 'percentage_over', 'integral', 'average'])
         self.balance_tk = rbdl.BalanceToolkit()
         self.omega_small = 1e-6
-        self.len = len(self.experiment.lead_time)
         self.filename = 'capture_point.yaml'
 
     @timing
     def performance_indicator(self):
         trajectory, distances, integrals, aggregates = self.run_pi()
         # self.__aggregate(distance)
-        if len(distances) == self.len:
+        if len(distances) == self.lead_time:
             return 0
         else:
             return -1
 
     def run_pi(self):
-        trajectory, result = zip(*[
+        trajectory, distances = zip(*[
             self.__metric(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(cos), obj)
             for q, qdot, cos, obj in
             zip(self.q, self.qdot, self.cos, zip(self.phases[['fl_obj', 'fr_obj']].to_numpy()))
         ])
-        result = np.array(result)
-        integrals = []
-        aggregates = []
-        for key in self.robot.step_list:
-            temp, temp2 = self.__integrate(result, self.robot.step_list[key])
-            integrals.append(temp)
-            aggregates.append(self.__aggregate(temp))
 
-        self.__plot(result)
-        #plt.plot(self.lead_time, trajectory, marker="x")
-        plt.show()
-        return trajectory, result, integrals, aggregates
+        distances = np.array(distances)
+
+        integrals_agg = {'all': self.integrate(distances)}
+        percentage_agg = {'all': self.percentage(distances)}
+        min_max_agg = {'all': self.min_max(distances)}
+        average_dist_agg = {'all': self.average_dist(distances)}
+
+        for key in self.robot.step_list:
+            average_dist = self.average_dist(distances, self.robot.step_list[key])
+            percentage_pos, percentage_neg = self.percentage(distances, self.robot.step_list[key])
+            min_dist, max_dist = self.min_max(distances, self.robot.step_list[key])
+            integral = self.integrate(distances, self.robot.step_list[key])
+
+            integrals_agg[key] = self.aggregate(integral)
+            average_dist_agg[key] = self.aggregate(average_dist)
+            percentage_agg[key] = [self.aggregate(percentage_pos), self.aggregate(percentage_neg)]
+            min_max_agg[key] = [self.aggregate(min_dist), self.aggregate(max_dist)]
+
+        return trajectory, distances, integrals_agg, percentage_agg, min_max_agg, average_dist_agg
 
     def __metric(self, q_, qdot_, cos_, obj=None):
         fpe_output = rbdl.FootPlacementEstimatorInfo()
@@ -88,23 +93,6 @@ class Cap(PerformanceIndicator):
             cap_bos = self.robot.distance_to_support_polygon(q_, cap, foot1, foot2)
             return cap, cap_bos
         return cap
-
-    @staticmethod
-    def __integrate(data, steps):
-        # if not data or not steps:
-        #     return None
-        integrals = []
-        temp = []
-        for index_list in steps:
-            integrals.append(simps(data[index_list]))
-            temp.append([statistics.mean(data[index_list]), statistics.stdev(data[index_list])])
-        return integrals, temp
-
-    @staticmethod
-    def __aggregate(data):
-        if not data:
-            return None
-        return [statistics.mean(data), statistics.stdev(data)]
 
     def __plot(self, data):
         fig = plt.figure()
