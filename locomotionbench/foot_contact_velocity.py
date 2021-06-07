@@ -47,22 +47,22 @@ class FootContactVelocity(PerformanceIndicator):
         angular, linear = zip(*[
             self.__metric(np.ascontiguousarray(q), np.ascontiguousarray(qdot), phases)
             for q, qdot, phases in
-            zip(self.q, self.qdot, zip(self.phases[['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj']].to_numpy()))
+            zip(self.q, self.qdot, zip(self.phases[['fl_single', 'fr_single', 'fl_double', 'fr_double', 'fl_obj', 'fr_obj']].to_numpy()))
         ])
+
+        # average_angular = {}
+        #
+        # for key in self.robot.step_list:
+        #
+        #     average_angular[key] = self.aggregate(angular, self.robot.step_list[key])
+
         return np.array(angular), np.array(linear)
 
     def __metric(self, q_, qdot_, phases):
-        left, right, double, fl_obj, fr_obj = phases[0]
+        fl_single, fr_single, fl_double, fr_double, fl_obj, fr_obj = phases[0]
         omega_v = 0
-        if left:
-            self.p_prev = 'L'
+        if fl_single or fl_double:
             omega_v = fl_obj.get_omega_v(self.robot.model, q_, qdot_)
-        elif right:
-            self.p_prev = 'L'
+        elif fr_single or fr_double:
             omega_v = fr_obj.get_omega_v(self.robot.model, q_, qdot_)
-        elif double:
-            if self.p_prev == 'L' or self.p_prev == 'D':
-                omega_v = fl_obj.get_omega_v(self.robot.model, q_, qdot_)
-            if self.p_prev == 'R':
-                omega_v = fr_obj.get_omega_v(self.robot.model, q_, qdot_)
         return omega_v[:3], omega_v[3:]
