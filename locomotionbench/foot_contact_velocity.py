@@ -37,8 +37,8 @@ class FootContactVelocity(PerformanceIndicator):
 
     @timing
     def performance_indicator(self):
-        result1, result2 = self.run_pi()
-        if len(result1) == self.len and len(result2) == self.len:
+        angular, linear, angular_agg, linear_agg= self.run_pi()
+        if len(angular) == self.len and len(linear) == self.len:
             return 0
         else:
             return -1
@@ -50,13 +50,18 @@ class FootContactVelocity(PerformanceIndicator):
             zip(self.q, self.qdot, zip(self.phases[['fl_single', 'fr_single', 'fl_double', 'fr_double', 'fl_obj', 'fr_obj']].to_numpy()))
         ])
 
-        # average_angular = {}
-        #
-        # for key in self.robot.step_list:
-        #
-        #     average_angular[key] = self.aggregate(angular, self.robot.step_list[key])
+        angular_agg = {}
+        linear_agg = {}
+        angular_l2 = np.linalg.norm(angular, axis=1)
+        linear_l2 = np.linalg.norm(angular, axis=1)
 
-        return np.array(angular), np.array(linear)
+        for key in self.robot.step_list:
+            angular_avg = self.average(angular_l2, self.robot.step_list[key])
+            linear_avg = self.average(linear_l2, self.robot.step_list[key])
+            angular_agg[key] = self.aggregate(angular_avg)
+            linear_agg[key] = self.aggregate(linear_avg)
+
+        return angular, linear, angular_agg, linear_agg
 
     def __metric(self, q_, qdot_, phases):
         fl_single, fr_single, fl_double, fr_double, fl_obj, fr_obj = phases[0]
