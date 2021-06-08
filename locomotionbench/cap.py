@@ -62,10 +62,10 @@ class Cap(PerformanceIndicator):
         integrals_agg = {'all': self.integrate(distances)}
         percentage_agg = {'all': self.percentage(distances)}
         min_max_agg = {'all': self.min_max(distances)}
-        average_dist_agg = {'all': self.average_dist(distances)}
+        average_dist_agg = {'all': self.average(distances)}
 
         for key in self.robot.step_list:
-            average_dist = self.average_dist(distances, self.robot.step_list[key])
+            average_dist = self.average(distances, self.robot.step_list[key])
             percentage_pos, percentage_neg = self.percentage(distances, self.robot.step_list[key])
             min_dist, max_dist = self.min_max(distances, self.robot.step_list[key])
             integral = self.integrate(distances, self.robot.step_list[key])
