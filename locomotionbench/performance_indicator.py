@@ -214,15 +214,15 @@ class PerformanceIndicator(ABC):
         return integrals
 
     @staticmethod
-    def average_dist(data, steps=None):
+    def average(data, steps=None):
         if not all(data):
             return None
         if not steps:
             return [statistics.mean(data), statistics.stdev(data)]
-        average_dists = []
+        average = []
         for index_list in steps:
-            average_dists.append(statistics.mean(data[index_list]))
-        return average_dists
+            average.append(statistics.mean(data[index_list]))
+        return average
 
     @staticmethod
     def percentage(data, steps=None):
@@ -244,7 +244,8 @@ class PerformanceIndicator(ABC):
             return None
         if not steps:
             return min(data), max(data)
-        min_max = []
+        my_min, my_max = [], []
         for index_list in steps:
-            min_max.append([min(data[index_list]), max(data[index_list])])
-        return min_max[0], min_max[1]
+            my_min.append(min(data[index_list]))
+            my_max.append(max(data[index_list]))
+        return my_min, my_max
