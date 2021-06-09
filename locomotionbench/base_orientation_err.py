@@ -40,7 +40,7 @@ class BaseOrientationError(PerformanceIndicator):
 
     @timing
     def performance_indicator(self):
-        result = self.run_pi()
+        result, base_error_l2_agg = self.run_pi()
 
         if len(result) == self.len:
             return 0
@@ -48,8 +48,14 @@ class BaseOrientationError(PerformanceIndicator):
             return -1
 
     def run_pi(self):
-        result = [self.__metric(np.ascontiguousarray(q)) for q in self.q]
-        return result
+        base_error = [self.__metric(np.ascontiguousarray(q)) for q in self.q]
+        base_error_l2 = np.linalg.norm(base_error, axis=1)
+
+        base_error_l2_agg = {'all': self.average(base_error_l2)}
+        for key in self.robot.step_list:
+            base_error_l2_avg = self.average(base_error_l2, self.robot.step_list[key])
+            base_error_l2_agg[key] = self.aggregate(base_error_l2_avg)
+        return base_error, base_error_l2_agg
 
     def __metric(self, q_):
         base_orient = rbdl.CalcBodyWorldOrientation(self.robot.model, q_, self.robot.body_map.index(self.robot.torso_link) + 1, True).transpose()
