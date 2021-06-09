@@ -119,19 +119,7 @@ if __name__ == '__main__':
     Color.green_print("Running PI Center of Mass")
     try:
         com = com.Com(output_folder_path, robot=robot, experiment=experiment)
-        com.performance_indicator()
-        #  special case for CoM since it calculates multiple metrics.
-        #  TODO: Might be changed in the future
-        is_ok = com.loc()
-        if not is_ok == 0:
-            sys.exit(is_ok)
-        is_ok = com.vel()
-        if not is_ok == 0:
-            sys.exit(is_ok)
-        is_ok = com.acc()
-        if not is_ok == 0:
-            sys.exit(is_ok)
-        is_ok = com.ang_mom()
+        is_ok = com.performance_indicator()
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
