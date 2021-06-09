@@ -35,48 +35,43 @@ class Com(PerformanceIndicator):
 
         self.balance_tk = rbdl.BalanceToolkit()
         self.omega_small = 1e-6
-        self.len = len(self.experiment.lead_time)
         self.r_c, self.v_c, self.a_c, self.h_c = [], [], [], []
 
     @timing
     def performance_indicator(self, pi=None):
-        self.run_pi()
-
-    def loc(self):
-        result = np.array(self.r_c)
-        if len(result) == self.len:
-            return 0
-        else:
-            return -1
-
-    def vel(self):
-        result = np.array(self.h_c)
-        if len(result) == self.len:
-            return 0
-        else:
-            return -1
-
-    def acc(self):
-        result = np.array(self.a_c)
-        if len(result) == self.len:
-            return 0
-        else:
-            return -1
-
-    def ang_mom(self):
-        result = []
-        for item in self.h_c:
-            result.append(item / (self.robot.mass * self.robot.leg_length ** 2))
-        if len(result) == self.len:
+        r_c, com_velocity_avg, com_acceleration_avg, h_c_avg_agg, h_c_integral_agg = self.run_pi()
+        if len(r_c) == len(self.lead_time):
             return 0
         else:
             return -1
 
     def run_pi(self):
-        result = [self.__metric(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(qddot))
-                  for q, qdot, qddot in zip(self.q, self.qdot, self.qddot)
-                  ]
-        return result
+        #  r_c location; h_c velocity; a_c acceleration, h_c normalized ang momentum about com
+        r_c, h_c, v_c, a_c = zip(*[
+            self.__metric(np.ascontiguousarray(q), np.ascontiguousarray(qdot), np.ascontiguousarray(qddot))
+            for q, qdot, qddot in zip(self.q, self.qdot, self.qddot)
+            ])
+
+        v_c_l2 = np.linalg.norm(v_c, axis=1)
+        a_c_l2 = np.linalg.norm(a_c, axis=1)
+
+        com_velocity_avg = self.average(v_c_l2)
+        com_acceleration_avg = self.average(a_c_l2)
+        h_c = np.abs(np.array(h_c))
+        h_c_avg_agg = {'all': [self.average(h_c[0]), self.average(h_c[1]), self.average(h_c[2])]}
+        h_c_integral_agg = {'all': [self.average(h_c[0]), self.average(h_c[1]), self.average(h_c[2])]}
+
+        for key in self.robot.step_list:
+            h_c_avg_x = self.average(h_c[:, 0], self.robot.step_list[key])
+            h_c_avg_y = self.average(h_c[:, 1], self.robot.step_list[key])
+            h_c_avg_z = self.average(h_c[:, 2], self.robot.step_list[key])
+            integral_x = self.integrate(h_c[:, 0], self.robot.step_list[key])
+            integral_y = self.integrate(h_c[:, 1], self.robot.step_list[key])
+            integral_z = self.integrate(h_c[:, 2], self.robot.step_list[key])
+
+            h_c_avg_agg[key] = [self.aggregate(h_c_avg_x), self.aggregate(h_c_avg_y), self.aggregate(h_c_avg_z)]
+            h_c_integral_agg[key] = [self.aggregate(integral_x), self.aggregate(integral_y), self.aggregate(integral_z)]
+        return r_c, com_velocity_avg, com_acceleration_avg, h_c_avg_agg, h_c_integral_agg
 
     def __metric(self, q_, qdot_, qddot_):
         r_c_ = np.zeros(3)
@@ -84,8 +79,4 @@ class Com(PerformanceIndicator):
         a_c_ = np.zeros(3)
         h_c_ = np.zeros(3)
         model_mass_ = rbdl.CalcCenterOfMass(self.robot.model, q_, qdot_, r_c_, qddot_, v_c_, a_c_, h_c_, None, True)
-        self.r_c.append(r_c_)
-        self.v_c.append(v_c_)
-        self.a_c.append(a_c_)
-        self.h_c.append(h_c_)
-        return r_c_, h_c_, v_c_, a_c_, model_mass_
+        return r_c_, h_c_, v_c_, a_c_
