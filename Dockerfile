@@ -60,10 +60,9 @@ RUN pip3 install matplotlib
 RUN export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/pi_runner/pybind11/build/usr/local/share/cmake/pybind11 && \
 pip3 install sophuspy
 
-COPY *.py /home/pi_runner/
+COPY src /home/pi_runner/src
 # set the user as owner of the copied files.
-RUN chown -R pi_runner:pi_runner /home/pi_runner/
-
+RUN chown -R pi_runner:pi_runner /home/pi_runner/src
 USER pi_runner
-WORKDIR /home/pi_runner
+WORKDIR /home/pi_runner/src
 ENV PYTHONPATH=${PYTHONPATH}:/home/pi_runner/rbdl-orb-build/python
