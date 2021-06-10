@@ -32,6 +32,17 @@ All PI (or a subset depending on the optional input files) associated to i3sa ca
 [source]
 run_i3sa.py tests/reemc_conf/robot.yaml tests/input/2021_02_19/14/1/pos.csv tests/input/2021_02_19/14/1/vel.csv tests/input/2021_02_19/14/1/acc.csv tests/input/2021_02_19/14/1/trq.csv tests/input/2021_02_19/14/1/ftl.csv tests/input/2021_02_19/14/1/ftr.csv tests/output/
 
+=== Input Files
+- model.urdf (required): location specified in robot.yaml
+- robot.yaml(required): robot specific information; points to robot model
+- joint_states.csv (required): joint angle file
+- joint_velocities.csv (optional): joint velocity file
+- joint_accelerations.csv (optional): joint acceleration file
+- joint_torques.csv (optional): joint torque file
+- grf_left.csv (optional): ground reaction forces file of left foot
+- grf_right.csv (optional): ground reaction forces file of right foot
+- conditions.yaml (not yet implemented): to calculate incorporate testbed settings
+
 == Docker Image
 === Build from Source
 [source]
