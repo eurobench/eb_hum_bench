@@ -3,42 +3,71 @@
 image::https://img.shields.io/badge/License-BSD%202--Clause-blue.svg[link=https://opensource.org/licenses/BSD-2-Clause]
 Copyright Felix Aller 2020
 
-This is a routine to calculate various performance indicators based on metrics from literature for periodic walking motions on humanoid robots.
-It is prepared to be used within the Eurobench Benchmarking Software.
+== Purpose
 
-The example data was obtained by executing the `I3SA - Increased Step Size Stability Assessment` protocol with the humanoid robot REEM-C by PAL Robotics.
+Scripts to calculate various performance indicators based on metrics from literature and physical quantities. Applicable to periodic walking motions on humanoid robots.
+Developed with the intention of integration into the EUROBENCH benchmarking framework.
 
+== Installing the library
 
-== Execution
-
-To initiate the calculation run:
+PIP3 can be used to install this module locally:
 [source]
-python3 bin/i3sa.py -r bin/conf/robot.yaml -e bin/conf/experiment.yaml
+git clone https://gitlab.com/orb-benchmarking/eb_hum_bench.git
+cd eb_hum_bench
+virtualenv -p /usr/bin/python3 venv
+source venv/bin/activate
+pip3 install -e src/
 
-from the working directory.
-The current output of metrics will be written to individual `.yaml` files in the `bin/output` directory.
+Using the virtual environment, the package and dependencies are installed locally in the folder venv. To deactivate the virtual environment, type `deactivate`.
 
-The configuration of the calculation routine is done in the two `.yaml` configuration files `robot.yaml` and
-`experiment.yaml` in the `bin/conf/` directory
-['com', 'cos', 'w_c', 'h_c', 'zmp', 'cop', 'fpe', 'cap', 'base', 'distance', 'impact', 'fc_vel', 'grf']
+To install the code permanently, only use `pip3 install -e src/`.
 
-.Currently implemented metrics include:
-. Center of Mass (COM) Trajectory
-. Zero Moment Point (ZMP)
-. Center of Pressure (COP)
-. Capture Point (CAP)
-. Foot Placement Estimator (FPE)
-. Normalized Angular Momentum at COM
-. Base Orientation Error of the Pelvis
-. Travelled Distance
-. Ground Reaction Force (GRF) impact
-. Linear and angular velocity of the Feet
-. Base of Support (BOS) and distances of 1.-5. to BOS
+Note: When adding or modifying Performance Indicators, run the installation command again. To keep the PIs up-to-date, run git pull and the installation command.
+
+== Usage
+To apply the PI calculation to data obtained from a specific robot, a `.urdf` model of the robotic systems must be provided and linked in a `robot.yaml` conifguration file among other additional information about the robot which need to be specified in the file.
+
+All PI (or a subset depending on the optional input files) associated to i3sa can be launched using (assuming folder output exists):
+
+[source]
+run_i3sa.py tests/reemc_conf/robot.yaml tests/input/2021_02_19/14/1/pos.csv tests/input/2021_02_19/14/1/vel.csv tests/input/2021_02_19/14/1/acc.csv tests/input/2021_02_19/14/1/trq.csv tests/input/2021_02_19/14/1/ftl.csv tests/input/2021_02_19/14/1/ftr.csv tests/output/
+
+== Docker Image
+=== Build from Source
+[source]
+docker build -t=i3sa .
+
+=== Launch the docker image
+Assuming the tests/reemc_conf/ contains the robot data (in this case REEM-C), tests/test/input contains the input data, the PI output will be written to output:
+
+[source]
+docker run --rm -v $PWD/tests/reemc_conf:/conf -v $PWD/tests/input:/in -v $PWD/tests/output:/out i3sa /conf/robot.yaml /in/subject_001_cond_001_run_001_wrench.csv /in/2021_02_19/14/1/pos.csv /in/input/2021_02_19/14/1/vel.csv /in/input/2021_02_19/14/1/acc.csv /in/input/2021_02_19/14/1/trq.csv /in/input/2021_02_19/14/1/ftl.csv /in/2021_02_19/14/1/ftr.csv /out
+
+== Example Data
+The example data are obtained by executing the `I3SA - Increased Step Size Stability Assessment` protocol with the humanoid robot REEM-C by PAL Robotics. The input data in the input directory consits of several preprocessed `.csv` files based on a real benchmarking run.
 
 
-IMPORTANT: Some of this metrics require additional processing and normalization according to the individual gait phases. This is WIP. Currently not all `Metrics` are converted to `Performance Indicators` according to EUROBENCH standard.
+== I3SA PIs
+Some of the resulting PI are calculated for several different gait Phases. We classify following phases:
 
-Currently exported PI include 8. 9. since they do not need to be further processed.
+. Complete: Complete dataset without segregation/classification.
+. FL: Single support and Left Foot is stance foot.
+. FR: Single support and Right Foot is stance foot.
+. DFL: Double Support and Left Foot was the stance foot in the previous single support phase.
+. DFR: Double Support and Right Foot was the stance foot in the previous single support phase.
+
+The currently implemented PIs include:
+
+. Center of Mass (COM): Average velocity, average acceleration (complete)
+. Normalized Angular Momentum at COM: Integrated absolute angular momentum about all axes. Average absolute angular momentum about all axes (FL, FR, DFL, DFR)
+. Zero Moment Point (ZMP): Average Distance to Base of Support (Dist-BoS), Integrated Dist-BOS, Min/max Dist-Bos (FL, FR, DFL, DFR)
+. Center of Pressure (COP): Average Distance to Base of Support (Dist-BoS), Integrated Dist-BOS, Min/max Dist-Bos (FL, FR, DFL, DFR)
+. Capture Point (CAP): Average Distance to Base of Support (Dist-BoS), Integrated Dist-BOS, Min/max Dist-Bos (FL, FR, DFL, DFR)
+. Foot Placement Estimator (FPE): Average Distance to Base of Support (Dist-BoS), Integrated Dist-BOS, Min/max Dist-Bos (FL, FR, DFL, DFR)
+. Base Orientation Error of the Pelvis: Average Norm of Base Orientation Error (complete)
+. Travelled Distance: Travelled Distance (complete)
+. Ground Reaction Force (GRF) impact: Average Max Impact (FL, FR, DFL, DFR)
+. Linear and angular velocity of the Feet: Average of norm of linear and angular velocity (FL, FR, DFL, DFR)
 
 == Acknowledgements
 [cols="^.^,.^", grid="none", frame="none"]
