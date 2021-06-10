@@ -41,7 +41,7 @@ run_i3sa.py tests/reemc_conf/robot.yaml tests/input/2021_02_19/14/1/pos.csv test
 - joint_torques.csv (optional): joint torque file
 - grf_left.csv (optional): ground reaction forces file of left foot
 - grf_right.csv (optional): ground reaction forces file of right foot
-- conditions.yaml (not yet implemented): to calculate incorporate testbed settings
+- conditions.yaml (not yet implemented): to incorporate testbed settings
 
 == Docker Image
 === Build from Source
