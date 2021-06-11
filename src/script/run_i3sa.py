@@ -30,11 +30,6 @@ conditions.yaml: TO BE DEFINED
 if __name__ == '__main__':
     Color.cyan_print("I3SA PI computation")
 
-    #  temporary argument list for debugging IDE
-    # temp_argv = ['src/script/run_i3sa.py', 'reemc_conf/robot.yaml', 'input/2021_02_19/14/1/pos.csv', 'input/2021_02_19/14/1/vel.csv',
-    #              'input/2021_02_19/14/1/acc.csv', 'input/2021_02_19/14/1/trq.csv', 'input/2021_02_19/14/1/ftl.csv',
-    #              'input/2021_02_19/14/1/ftr.csv', 'tests/output/']
-
     output_folder_path = sys.argv[-1]
 
     #  create experiment containing the uploaded files

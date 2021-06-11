@@ -25,7 +25,7 @@ To install the code permanently, only use `pip3 install -e src/`.
 Note: When adding or modifying Performance Indicators, run the installation command again. To keep the PIs up-to-date, run git pull and the installation command.
 
 == Usage
-To apply the PI calculation to data obtained from a specific robot, a `.urdf` model of the robotic systems must be provided and linked in a `robot.yaml` conifguration file among other additional information about the robot which need to be specified in the file.
+To apply the PI calculation to data obtained from a specific robot, a `.urdf` model of the robotic systems must be provided and linked in a `robot.yaml` configuration file among other additional information about the robot which need to be specified in the file.
 
 All PI (or a subset depending on the optional input files) associated to i3sa can be launched using (assuming folder output exists):
 
