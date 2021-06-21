@@ -46,27 +46,29 @@ class GroundReactionForces(PerformanceIndicator):
 
     def run_pi(self):
         grf = [self.__metric(phases) for phases in zip(self.phases[['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj']].to_numpy())]
-        grf_agg = {'all': self.average(grf)}
+        grf_l2 = np.linalg.norm(grf, axis=1)
+        grf_agg = {'all': self.average(grf_l2)}
         for key in self.robot.step_list:
-            grf_avg = self.average(grf, self.robot.step_list[key])
+            grf_avg = self.average(grf_l2, self.robot.step_list[key])
             grf_agg[key] = self.aggregate(grf_avg)
         return grf, grf_agg
 
-    def __metric(self, q_):
+    def __metric(self, phases):
+        grf_constraints = np.zeros(4)
         left, right, double, fl_obj, fr_obj = phases[0]
         if double:
-            grf[0] = (abs(fl_obj.forces[0]) / fl_obj.forces[2]) + (abs(fr_obj.forces[0]) / fr_obj.forces[2])
-            grf[1] = (abs(fl_obj.forces[1]) / fl_obj.forces[2]) + (abs(fr_obj.forces[1]) / fr_obj.forces[2])
-            grf[2] = (abs(fl_obj.torques[0]) / fl_obj.forces[2]) + (abs(fr_obj.torques[0]) / fr_obj.forces[2])
-            grf[3] = (abs(fl_obj.torques[1]) / fl_obj.forces[2]) + (abs(fr_obj.torques[1]) / fr_obj.forces[2])
-            return fl_obj.forces[self.vertical_force] + fr_obj.forces[self.vertical_force]
+            grf_constraints[0] = (abs(fl_obj.forces[0]) / fl_obj.forces[2]) + (abs(fr_obj.forces[0]) / fr_obj.forces[2])
+            grf_constraints[1] = (abs(fl_obj.forces[1]) / fl_obj.forces[2]) + (abs(fr_obj.forces[1]) / fr_obj.forces[2])
+            grf_constraints[2] = (abs(fl_obj.moment[0]) / fl_obj.forces[2]) + (abs(fr_obj.moment[0]) / fr_obj.forces[2])
+            grf_constraints[3] = (abs(fl_obj.moment[1]) / fl_obj.forces[2]) + (abs(fr_obj.moment[1]) / fr_obj.forces[2])
         elif left:
-            grf[0] = (abs(fl_obj.forces[0]) / fl_obj.forces[2])
-            grf[1] = (abs(fl_obj.forces[1]) / fl_obj.forces[2])
-            grf[2] = (abs(fl_obj.torques[0]) / fl_obj.forces[2])
-            grf[3] = (abs(fl_obj.torques[1]) / fl_obj.forces[2])
+            grf_constraints[0] = (abs(fl_obj.forces[0]) / fl_obj.forces[2])
+            grf_constraints[1] = (abs(fl_obj.forces[1]) / fl_obj.forces[2])
+            grf_constraints[2] = (abs(fl_obj.moment[0]) / fl_obj.forces[2])
+            grf_constraints[3] = (abs(fl_obj.moment[1]) / fl_obj.forces[2])
         elif right:
-            grf[0] = (abs(fr_obj.forces[0]) / fr_obj.forces[2])
-            grf[1] = (abs(fr_obj.forces[1]) / fr_obj.forces[2])
-            grf[2] = (abs(fr_obj.torques[0]) / fr_obj.forces[2])
-            grf[3] = (abs(fr_obj.torques[1]) / fr_obj.forces[2])
+            grf_constraints[0] = (abs(fr_obj.forces[0]) / fr_obj.forces[2])
+            grf_constraints[1] = (abs(fr_obj.forces[1]) / fr_obj.forces[2])
+            grf_constraints[2] = (abs(fr_obj.moment[0]) / fr_obj.forces[2])
+            grf_constraints[3] = (abs(fr_obj.moment[1]) / fr_obj.forces[2])
+        return grf_constraints
