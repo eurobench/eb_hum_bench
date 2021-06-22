@@ -14,7 +14,7 @@ __email__ = "felix.aller@ziti.uni-heidelberg.de"
 __status__ = "Development"
 
 from src.locomotionbench.environment import *
-from src.locomotionbench import cop, fpe, zmp, impact, distance, foot_contact_velocity
+from src.locomotionbench import cop, fpe, zmp, impact, distance, foot_contact_velocity, grf
 from src.locomotionbench import cap, base_orientation_err, com
 
 USAGE = """usage: python3 src/script/run_i3sa.py tests/reemc_conf/robot.yaml tests/input/2021_02_19/14/1/pos.csv tests/input/2021_02_19/14/1/vel.csv tests/input/2021_02_19/14/1/acc.csv tests/input/2021_02_19/14/1/trq.csv tests/input/2021_02_19/14/1/ftl.csv tests/input/2021_02_19/14/1/ftr.csv tests/output/
@@ -141,6 +141,15 @@ if __name__ == '__main__':
     try:
         fc_vel = foot_contact_velocity.FootContactVelocity(output_folder_path, robot=robot, experiment=experiment)
         is_ok = fc_vel.performance_indicator()
+        if not is_ok == 0:
+            sys.exit(is_ok)
+    except FileNotFoundError:
+        Color.warning_print('Skipping PI')
+
+    Color.green_print("Running PI Ground Reaction Forces")
+    try:
+        grf = grf.GroundReactionForces(output_folder_path, robot=robot, experiment=experiment)
+        is_ok = grf.performance_indicator()
         if not is_ok == 0:
             sys.exit(is_ok)
     except FileNotFoundError:
