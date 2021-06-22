@@ -30,13 +30,15 @@ conditions.yaml: TO BE DEFINED
 if __name__ == '__main__':
     Color.cyan_print("I3SA PI computation")
 
-    output_folder_path = sys.argv[-1]
+    args = parse_args()
+
+    output_folder_path = args.out
 
     #  create experiment containing the uploaded files
-    experiment = Experiment(sys.argv[2:-1])
+    experiment = Experiment(args)
 
     #  create robot with specific parameters used with experiment
-    robot = Robot(sys.argv[1])
+    robot = Robot(args)
 
     #  check if column order in file header does match link order in robot model.
     if experiment.are_columns_matching(robot.get_body_map()):

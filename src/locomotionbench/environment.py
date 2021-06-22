@@ -20,6 +20,8 @@ import yaml
 import pandas as pd
 import numpy as np
 import os
+import argparse
+import pathlib
 from csaps import csaps
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
@@ -27,13 +29,23 @@ from shapely.geometry import MultiPoint
 from src.locomotionbench.performance_indicator import timing
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Process EUROBENCH File Format')
+    parser.add_argument('--conf', type=argparse.FileType('r'), required=True)
+    parser.add_argument('--out', type=pathlib.Path, required=True)
+    parser.add_argument('--pos', help='Position File containing 6D-Freeflyer and Joint Angles', type=argparse.FileType('r'), required=True)
+    parser.add_argument('--vel', type=argparse.FileType('r'))
+    parser.add_argument('--acc', type=argparse.FileType('r'))
+    parser.add_argument('--trq', type=argparse.FileType('r'))
+    parser.add_argument('--ftl', type=argparse.FileType('r'))
+    parser.add_argument('--ftr', type=argparse.FileType('r'))
+    return parser.parse_args()
+
 # Robot class to collect all the information for the used robot to expose it to performance calculation routine
 class Robot:
-    def __init__(self, conf_file_):
+    def __init__(self, args):
         # open yaml file containing the required information
-        with open(conf_file_, 'r') as f:
-            conf = yaml.load(f, Loader=yaml.FullLoader)
-
+        conf = yaml.load(args.conf, Loader=yaml.FullLoader)
         # robot model, used by most of the pi
         self.model = rbdl.loadModel(conf['modelpath'] + conf['robotmodel'], floating_base=True, verbose=False)
         self.base_link = conf['base_link']  # base link or root of the kinematic chain
@@ -480,24 +492,16 @@ class FootContact:
 
 
 class Experiment:
-    def __init__(self, file_names_, separator_=';'):
-        """
-        joint_states.csv
-        joint_velocities.csv
-        joint_accelerations.csv
-        joint_torques.csv
-        grf_left.csv
-        grf_right.csv
-        conditions.yaml
-        """
+    def __init__(self, args, separator=';'):
+
         self.files = {}
         self.files_not_provided = []
-        self.files_not_provided.append(self.open_file('pos', file_names_[0], separator_))
-        self.files_not_provided.append(self.open_file('vel', file_names_[1], separator_))
-        self.files_not_provided.append(self.open_file('acc', file_names_[2], separator_))
-        self.files_not_provided.append(self.open_file('trq', file_names_[3], separator_))
-        self.files_not_provided.append(self.open_file('ftl', file_names_[4], separator_))
-        self.files_not_provided.append(self.open_file('ftr', file_names_[5], separator_))
+        self.files_not_provided.append(self.open_file('pos', args.pos, separator))
+        self.files_not_provided.append(self.open_file('vel', args.vel, separator))
+        self.files_not_provided.append(self.open_file('acc', args.acc, separator))
+        self.files_not_provided.append(self.open_file('trq', args.trq, separator))
+        self.files_not_provided.append(self.open_file('ftl', args.ftl, separator))
+        self.files_not_provided.append(self.open_file('ftr', args.ftr, separator))
 
         # self.files['conditions'] = yaml.load(file_names_[6], Loader=yaml.FullLoader)
         # TODO check order for all files in a smart way

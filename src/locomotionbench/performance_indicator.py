@@ -122,9 +122,9 @@ class PerformanceIndicator(ABC):
     # write file in output path
     def write_file(self, filename, file_content):
         try:
-            with open(self.output_folder + filename, 'w') as file:
+            filepath = self.output_folder / filename
+            with filepath.open("w", encoding ="utf-8") as file:
                 file.write(file_content)
-
             file.close()
         except FileNotFoundError:
             print("Failed to write output to file \"{}\"".format(filename))
