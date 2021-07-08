@@ -27,12 +27,14 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import MultiPoint
 from src.locomotionbench.performance_indicator import timing
+from src.script.gait_event_conversion import gaitevents_to_framelist
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Process EUROBENCH File Format')
     parser.add_argument('--conf', type=argparse.FileType('r'), required=True)
     parser.add_argument('--out', type=pathlib.Path, required=True)
+    parser.add_argument('--gait', type=argparse.FileType('r'), required=True)
     parser.add_argument('--pos', help='Position File containing 6D-Freeflyer and Joint Angles', type=argparse.FileType('r'), required=True)
     parser.add_argument('--vel', type=argparse.FileType('r'))
     parser.add_argument('--acc', type=argparse.FileType('r'))
@@ -41,6 +43,7 @@ def parse_args():
     parser.add_argument('--ftr', type=argparse.FileType('r'))
     return parser.parse_args()
 
+
 # Robot class to collect all the information for the used robot to expose it to performance calculation routine
 class Robot:
     def __init__(self, args):
@@ -48,6 +51,7 @@ class Robot:
         conf = yaml.load(args.conf, Loader=yaml.FullLoader)
         # robot model, used by most of the pi
         self.model = rbdl.loadModel(conf['modelpath'] + conf['robotmodel'], floating_base=True, verbose=False)
+        self.gait_events = yaml.load(args.gait, Loader=yaml.FullLoader)
         self.base_link = conf['base_link']  # base link or root of the kinematic chain
         self.gravity = conf['gravity']  # gravity as a list of x, y, z
         self.l_foot = conf['foot_l']  # link name of the left foot in model
@@ -82,101 +86,22 @@ class Robot:
     def get_body_map(self):
         return self.body_map
 
-    @timing
-    def gait_segmentation(self, experiment_, remove_ds=False, remove_hs=False):
-        """
-        segment the complete gait according to 3-phases: single support l/r and double support
-        """
-
-        lead_time = experiment_.lead_time.to_numpy().flatten()  # get array of all timestamps from experimental data
-        pos = experiment_.get_file('pos')  # load pos data
-        vel = experiment_.get_file('vel')  # load vel data
-
-        # check if force torque information is provided. If so use it for gait segmentation
-        if experiment_.files_not_provided.count('ftl') == 0 and experiment_.files_not_provided.count('ftr') == 0:
-            ftl = experiment_.get_file('ftl')  # load force torque data of left sensor
-            ftr = experiment_.get_file('ftr')  # load force torque data of right sensor
-
-            # l_upper = np.zeros(len(lead_time))
-            # r_upper = np.zeros(len(lead_time))
-            smooth = 0.99  # smoothing factor for cubic spline fit
-
-            # TODO: better way to estimate boundaries: e.g. random forests
-            up = -(self.mass * 0.2 * self.gravity[2])  # weight threshold based on the robot weight
-
-            fl_ft = np.array(ftl['force_z'])  # get vertical force
-            fr_ft = np.array(ftr['force_z'])  # get vertical force
-            fl_ft_spl = csaps(lead_time, np.array(ftl['force_z']), smooth=smooth)  # fit smoothing spline to force data
-            fl_ft_smooth = fl_ft_spl(lead_time)
-            fr_ft_spl = csaps(lead_time, np.array(ftr['force_z']), smooth=smooth)  # fit smoothing spline to force data
-            fr_ft_smooth = fr_ft_spl(lead_time)
-
-            # fl_vel = result[:, 2, :]
-            # fr_vel = result[:, 3, :]
-
-            # Identify gait phase based on the force torque acting on the the feet
-            l_upper = [i if j > up else -999 for i in fl_ft for j in fl_ft_smooth]  # find contact points left
-            r_upper = [i if j > up else -999 for i in fr_ft for j in fr_ft_smooth]  # find contact points right
-        else:
-            # if no force files were provided set contact points to zero to be ignored later on
-            l_upper = [0] * len(lead_time)
-            r_upper = [0] * len(lead_time)
-
-        # TODO: parameterize cut off parameters
-
-        # obtain foot_contact_point_l, foot_contact_point_r, foot_velocity_l, foot_velocity_r
-        # used for position and velocity based gait segmentation
-        result = [self.get_pos_and_vel(np.ascontiguousarray(q), np.ascontiguousarray(qdot))
-                  for q, qdot in
-                  zip(pos[experiment_.col_names].to_numpy(), vel[experiment_.col_names].to_numpy())
-                  ]
-
-        result = np.array(result)
-        fl_pos = result[:, 0, :]  # allocation
-        fr_pos = result[:, 1, :]  # allocation
-
-        # Identify gait phase based on change of position of the feet in gait direction
-        fl_pos_x = np.array([row[0] for row in fl_pos])
-        fr_pos_x = np.array([row[0] for row in fr_pos])
-        fl_pos_x_dot = np.gradient(fl_pos_x, np.array(lead_time))
-        fr_pos_x_dot = np.gradient(fr_pos_x, np.array(lead_time))
-        fl_pos_x_dot_cut = np.array([-1 if x >= 0.2 else x for x in fl_pos_x_dot])
-        fr_pos_x_dot_cut = np.array([-1 if x >= 0.2 else x for x in fr_pos_x_dot])
-
-        # Identify gait phase based on change of height of the feet
-        fl_pos_z = np.array([row[2] for row in fl_pos])
-        fr_pos_z = np.array([row[2] for row in fr_pos])
-        fl_pos_z_dot = np.gradient(fl_pos_z, np.array(lead_time))
-        fr_pos_z_dot = np.gradient(fr_pos_z, np.array(lead_time))
-        fl_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fl_pos_z_dot])
-        fr_pos_z_dot_cut = np.array([-1 if x >= 0.1 else x for x in fr_pos_z_dot])
-
-        # Identify gait phase based on the velocity of feet
-        # fl_vel_x = np.array([row[0] for row in fl_vel])
-        # fr_vel_x = np.array([row[0] for row in fr_vel])
-        # fl_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fl_vel_x])
-        # fr_vel_x_cut = np.array([-1 if x >= 0.25 else x for x in fr_vel_x])
-        # phases = pd.DataFrame(columns=['fl_single', 'fr_single', 'double', 'fl_obj', 'fr_obj'])
-
-        # assign different phases based on the above created criteria
-        self.phases = self.assign_phase(experiment_.lead_time, fl_pos_x_dot_cut, fl_pos_z_dot_cut,
-                                        np.array(l_upper), fr_pos_x_dot_cut, fr_pos_z_dot_cut, np.array(r_upper))
-
         # if applicable and requested: cut of double support phases at start and end and additionally also the first and
         # last halfstep
-        crop = [None, None]
+    def truncate_gait(self, remove_ds=False, remove_hs=False):
+        truncate = [None, None]
         if remove_ds is True:
             start_ds_end, end_ds_start = self.crop_start_end_phases()
-            crop = [start_ds_end, end_ds_start]
+            truncate = [start_ds_end, end_ds_start]
             if remove_hs is True:
                 start_ds_hs_end, end_ds_hs_start = self.crop_start_end_halfstep(start_ds_end, end_ds_start)
-                crop = [start_ds_hs_end, end_ds_hs_start]
+                truncate = [start_ds_hs_end, end_ds_hs_start]
 
         # create index lists of individual steps
         for key in self.step_list:
-            self.step_list[key] = self.create_step_list(self.phases.query(f'{key} == True').index.tolist(), crop)
+            self.step_list[key] = self.create_step_list(self.phases.query(f'{key} == True').index.tolist(), truncate)
 
-        return crop
+        return truncate
 
     @staticmethod
     def create_step_list(phases, crop=None):
@@ -308,67 +233,40 @@ class Robot:
                 self.phases.loc[index, ['fr_obj']] = foot2
             self.cos.loc[index, ['x', 'y', 'z']] = cos
 
-    @staticmethod
-    def assign_phase(time, fl_pos_x_dot_cut, fl_pos_z_dot_cut, l_upper, fr_pos_x_dot_cut, fr_pos_z_dot_cut,
-                     r_upper):
+    # @staticmethod
+    # def assign_phase(time, fl_pos_x_dot_cut, fl_pos_z_dot_cut, l_upper, fr_pos_x_dot_cut, fr_pos_z_dot_cut,
+    #                  r_upper):
+    def assign_phase(self, leadtime):
         phases = pd.DataFrame(
             columns=['fl_single', 'fr_single', 'double', 'fl_double', 'fr_double', 'fl_obj', 'fr_obj'])
-        fl_single = np.zeros(len(time), dtype=bool)
-        fr_single = np.zeros(len(time), dtype=bool)
-        double = np.zeros(len(time), dtype=bool)
-        prev_l = np.zeros(len(time), dtype=bool)
-        prev_r = np.zeros(len(time), dtype=bool)
-        prev_value = None
-        for index, value in time.itertuples():
-            i = 0
-            if fl_pos_x_dot_cut[index] != -1 and fl_pos_z_dot_cut[index] != -1 and l_upper[index] != -999:
-                # and fl_vel_x_cut[j_] != -1
-                fl_single[index] = True
-                buffer = 'fl'
-                i += 1
-
-            if fr_pos_x_dot_cut[index] != -1 and fr_pos_z_dot_cut[index] != -1 and r_upper[index] != -999:
-                # and fr_vel_x_cut[j_] != -1:
-                fr_single[index] = True
-                buffer = 'fr'
-                i += 1
-
-            if i <= 1:
-                prev_value = buffer
-
-            if fl_single[index] and fr_single[index]:
-                double[index] = True
-                fl_single[index] = False
-                fr_single[index] = False
-                if prev_value == 'fl':
-                    prev_l[index] = True
-                    prev_r[index] = False
-                elif prev_value == 'fr':
-                    prev_l[index] = False
-                    prev_r[index] = True
-                else:
-                    prev_l[index] = False
-                    prev_r[index] = False
-
-            elif not fl_single[index] and not fr_single[index]:
-                double[index] = True
-                if prev_value == 'fl':
-                    prev_l[index] = True
-                    prev_r[index] = False
-                elif prev_value == 'fr':
-                    prev_l[index] = False
-                    prev_r[index] = True
-                else:
-                    prev_l[index] = False
-                    prev_r[index] = False
+        frames = gaitevents_to_framelist(self.gait_events, leadtime)
+        fl_single = np.zeros(len(frames), dtype=bool)
+        fr_single = np.zeros(len(frames), dtype=bool)
+        double = np.zeros(len(frames), dtype=bool)
+        prev_l = np.zeros(len(frames), dtype=bool)
+        prev_r = np.zeros(len(frames), dtype=bool)
+        prev = None
+        for i in range(len(frames)):
+            if frames[i] == 'd':
+                double[i] = True
+                if prev:
+                    if prev == 'l':
+                        prev_l[i] = True
+                    if prev == 'r':
+                        prev_r[i] = True
+            elif frames[i] == 'l':
+                fl_single[i] = True
+                prev = frames[i]
+            elif frames[i] == 'r':
+                fr_single[i] = True
+                prev = frames[i]
 
         phases['fl_single'] = fl_single
         phases['fr_single'] = fr_single
         phases['double'] = double
         phases['fl_double'] = prev_l
         phases['fr_double'] = prev_r
-
-        return phases
+        self.phases = phases
 
     def distance_to_double_support(self, q_, poi_, foot1_, foot2_):
         """

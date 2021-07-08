@@ -20,7 +20,6 @@ import numpy as np
 from scipy.integrate import simps
 import statistics
 
-
 #  debugging function to use @timing decorator to obtain runtime information of individual performance indicators
 def timing(f):
     @wraps(f)
@@ -58,7 +57,7 @@ class PerformanceIndicator(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def __init__(self, output_folder_path, robot=None, experiment=None):
+    def __init__(self, output_folder_path, robot, experiment):
 
         # set name of classes to distinguish in read_data()
         self.cl_name_robot = 'Robot'
@@ -67,21 +66,20 @@ class PerformanceIndicator(ABC):
         # set output folder path for results
         self.output_folder = output_folder_path
 
-        # check if robot was provided
-        # TODO: this is currently always the case for robot and experiment, maybe remove the None option
-        if robot:
-            self.robot = robot
-            try:  # pass down error if files were not found in order to skip the metric calculation
-                self.read_data(self.required, robot)
-            except FileNotFoundError:
-                raise FileNotFoundError
-        if experiment:
-            self.experiment = experiment
-            try:  # pass down error if files were not found in order to skip the metric calculation
-                self.read_data(self.required, experiment)
-                self.lead_time = experiment.lead_time
-            except FileNotFoundError:
-                raise FileNotFoundError
+
+        self.experiment = experiment
+        try:  # pass down error if files were not found in order to skip the metric calculation
+            self.read_data(self.required, experiment)
+            self.lead_time = experiment.lead_time
+        except FileNotFoundError:
+            raise FileNotFoundError
+
+        self.robot = robot
+        try:  # pass down error if files were not found in order to skip the metric calculation
+            self.read_data(self.required, robot)
+        except FileNotFoundError:
+            raise FileNotFoundError
+
 
     def read_data(self, require_, data_):
         name = type(data_).__name__  # are we looking at robot or experiment data

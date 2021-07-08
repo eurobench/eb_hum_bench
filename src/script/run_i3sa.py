@@ -48,7 +48,8 @@ if __name__ == '__main__':
     Color.green_print('Running Gait Phase Classification')
     #  classify gait phases to single left, single right and double support phases.
     #  possibility to remove first/last double support phase and additionally first/last halfstep leading into the motion
-    truncate = robot.gait_segmentation(experiment, remove_ds=True, remove_hs=True)
+    robot.assign_phase(experiment.lead_time.to_numpy().flatten())
+    truncate = robot.truncate_gait(remove_ds=True, remove_hs=True)
     if all(truncate):
         experiment.truncate_lead_time(truncate)
         experiment.truncate_data(truncate)
