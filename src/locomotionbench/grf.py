@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-base_orientation.py:
-Calculates the base orientation error.
+grf.py:
+Calculates the Ground reaction forces
 """
-__author__ = ["Adrià Roig", "Felix Aller"]
+__author__ = ["Adrià Roig"]
 __copyright__ = "Copyright 2021, EUROBENCH Project"
-__credits__ = ["Monika Harant", "Martin Felis"]
+__credits__ = ["Felix Aller", "Monika Harant", "Martin Felis"]
 __license__ = "BSD-2-Clause"
 __version__ = "0.2"
 __maintainer__ = "Felix Aller"
