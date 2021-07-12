@@ -6,7 +6,7 @@ Copyright Felix Aller 2020
 == Purpose
 
 Scripts to calculate various performance indicators based on metrics from literature and physical quantities. Applicable to periodic walking motions on humanoid robots.
-Developed with the intention of integration into the EUROBENCH benchmarking framework.
+Developed with the intention of integration into the EUROBENCH benchmarking framework. Tested on Python 3.8.
 
 == Installing the library
 
@@ -30,18 +30,18 @@ To apply the PI calculation to data obtained from a specific robot, a `.urdf` mo
 All PI (or a subset depending on the optional input files) associated to i3sa can be launched using (assuming folder output exists):
 
 [source]
-run_i3sa.py tests/reemc_conf/robot.yaml tests/input/2021_02_19/14/1/pos.csv tests/input/2021_02_19/14/1/vel.csv tests/input/2021_02_19/14/1/acc.csv tests/input/2021_02_19/14/1/trq.csv tests/input/2021_02_19/14/1/ftl.csv tests/input/2021_02_19/14/1/ftr.csv tests/output/
+run_i3sa.py --conf tests/reemc_conf/robot.yaml --pos tests/input/2021_02_19/14/1/pos.csv --vel tests/input/2021_02_19/14/1/vel.csv --acc tests/input/2021_02_19/14/1/acc.csv --trq tests/input/2021_02_19/14/1/trq.csv --ftl tests/input/2021_02_19/14/1/ftl.csv --ftr tests/input/2021_02_19/14/1/ftr.csv --gait tests/input/2021_02_19/14/1/gaitEvents.yaml --out tests/output/
 
 === Input Files
-- model.urdf (required): location specified in robot.yaml
-- robot.yaml(required): robot specific information; points to robot model
+- https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#31-unified-robot-description-format-urdf-file[model.urdf] (required): location specified in robot.yaml
+- https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#4-testbed-configuration-file[robot.yaml](required): robot specific information; points to robot model
+- https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#612-gait-events-file[gaitEvents.yaml] (required): contains information about the foot contacts i.e. support phase (double, single left/right)
 - joint_states.csv (required): joint angle file
 - joint_velocities.csv (optional): joint velocity file
 - joint_accelerations.csv (optional): joint acceleration file
 - joint_torques.csv (optional): joint torque file
 - grf_left.csv (optional): ground reaction forces file of left foot
 - grf_right.csv (optional): ground reaction forces file of right foot
-- conditions.yaml (not yet implemented): to incorporate testbed settings
 
 == Docker Image
 === Build from Source
