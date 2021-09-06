@@ -33,6 +33,7 @@ from src.script.gait_event_conversion import gaitevents_to_framelist
 def parse_args():
     parser = argparse.ArgumentParser(description='Process EUROBENCH File Format')
     parser.add_argument('--conf', type=argparse.FileType('r'), required=True)
+    parser.add_argument('--model', type=argparse.FileType('r'), required=True)
     parser.add_argument('--out', type=pathlib.Path, required=True)
     parser.add_argument('--gait', type=argparse.FileType('r'), required=True)
     parser.add_argument('--pos', help='Position File containing 6D-Freeflyer and Joint Angles', type=argparse.FileType('r'), required=True)
@@ -50,7 +51,7 @@ class Robot:
         # open yaml file containing the required information
         conf = yaml.load(args.conf, Loader=yaml.FullLoader)
         # robot model, used by most of the pi
-        self.model = rbdl.loadModel(conf['modelpath'] + conf['robotmodel'], floating_base=True, verbose=False)
+        self.model = rbdl.loadModel(args.model.name, floating_base=True, verbose=False)
         self.gait_events = yaml.load(args.gait, Loader=yaml.FullLoader)
         self.base_link = conf['base_link']  # base link or root of the kinematic chain
         self.gravity = conf['gravity']  # gravity as a list of x, y, z

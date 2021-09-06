@@ -4,7 +4,15 @@ FROM ubuntu:bionic
 
 RUN apt-get update \
     && apt-get install -y less \
-    && apt-get install -y wget dialog apt-utils
+    && apt-get install -y wget dialog apt-utils \
+    && apt-get -y install locales
+
+# Set the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
 # create user account, and create user home dir
 RUN useradd -ms /bin/bash pi_runner
@@ -48,21 +56,23 @@ RUN apt-get -qq install --no-install-recommends python3-pip
 RUN apt-get -qq install --no-install-recommends -y python3-setuptools
 
 RUN pip3 install --upgrade pip
-RUN apt-get -qq install --no-install-recommends -y python3-wheel
-
-RUN pip3 install numpy
-RUN pip3 install pandas
-RUN pip3 install pyyaml
-RUN pip3 install scipy
-RUN pip3 install Shapely
-RUN pip3 install csaps
-RUN pip3 install matplotlib
+#RUN apt-get -qq install --no-install-recommends -y python3-wheel
+#RUN pip3 install numpy
+#RUN pip3 install pandas
+#RUN pip3 install pyyaml
+#RUN pip3 install scipy
+#RUN pip3 install Shapely
+#RUN pip3 install csaps
+#RUN pip3 install matplotlib
 RUN export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/pi_runner/pybind11/build/usr/local/share/cmake/pybind11 && \
-pip3 install sophuspy
+    pip3 install sophuspy
 
 COPY src /home/pi_runner/src
 # set the user as owner of the copied files.
 RUN chown -R pi_runner:pi_runner /home/pi_runner/src
-USER pi_runner
-WORKDIR /home/pi_runner/src
+
+WORKDIR /home/pi_runner
+RUN pip3 install --ignore-installed -e src/
+#USER pi_runner
 ENV PYTHONPATH=${PYTHONPATH}:/home/pi_runner/rbdl-orb-build/python
+ENV export PYTHONPATH=${PYTHONPATH}:/home/pi_runner/.local/bin

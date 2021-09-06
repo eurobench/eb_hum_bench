@@ -24,6 +24,8 @@ To install the code permanently, only use `pip3 install -e src/`.
 
 Note: When adding or modifying Performance Indicators, run the installation command again. To keep the PIs up-to-date, run git pull and the installation command.
 
+The code was tested using Python 3.8 on a machine running Linux. Apart from several Python3 libraries the code makes heavy use of https://github.com/ORB-HD/rbdl-orb[RBDL] and the https://github.com/mjhmilla/rbdl-orb/tree/balance-addon[Balance] Addon.
+
 == Usage
 To apply the PI calculation to data obtained from a specific robot, a `.urdf` model of the robotic systems must be provided and linked in a `robot.yaml` configuration file among other additional information about the robot which need to be specified in the file.
 
@@ -33,7 +35,7 @@ All PI (or a subset depending on the optional input files) associated to i3sa ca
 run_i3sa.py --conf tests/reemc_conf/robot.yaml --pos tests/input/2021_02_19/14/1/pos.csv --vel tests/input/2021_02_19/14/1/vel.csv --acc tests/input/2021_02_19/14/1/acc.csv --trq tests/input/2021_02_19/14/1/trq.csv --ftl tests/input/2021_02_19/14/1/ftl.csv --ftr tests/input/2021_02_19/14/1/ftr.csv --gait tests/input/2021_02_19/14/1/gaitEvents.yaml --out tests/output/
 
 === Input Files
-- https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#31-unified-robot-description-format-urdf-file[model.urdf] (required): location specified in robot.yaml
+- https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#31-unified-robot-description-format-urdf-file[model.urdf] (required): location specified in robot.yaml (currently .lua model instead of .urdf)
 - https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#4-testbed-configuration-file[robot.yaml](required): robot specific information; points to robot model
 - https://github.com/aremazeilles/eurobench_documentation/blob/master/modules/ROOT/pages/data_format.adoc#612-gait-events-file[gaitEvents.yaml] (required): contains information about the foot contacts i.e. support phase (double, single left/right)
 - joint_states.csv (required): joint angle file
@@ -48,11 +50,14 @@ run_i3sa.py --conf tests/reemc_conf/robot.yaml --pos tests/input/2021_02_19/14/1
 [source]
 docker build -t=i3sa .
 
+Note: The Docker currently does not automatically pull this (private) repository. Please attach to the Docker and use your Gitlab credentials to manually pull the code.
+
 === Launch the docker image
+
 Assuming the tests/reemc_conf/ contains the robot data (in this case REEM-C), tests/test/input contains the input data, the PI output will be written to output:
 
 [source]
-docker run --rm -v $PWD/tests/reemc_conf:/conf -v $PWD/tests/input:/in -v $PWD/tests/output:/out i3sa /conf/robot.yaml /in/subject_001_cond_001_run_001_wrench.csv /in/2021_02_19/14/1/pos.csv /in/input/2021_02_19/14/1/vel.csv /in/input/2021_02_19/14/1/acc.csv /in/input/2021_02_19/14/1/trq.csv /in/input/2021_02_19/14/1/ftl.csv /in/2021_02_19/14/1/ftr.csv /out
+docker run --rm -v $PWD/tests/reemc_conf:/conf -v $PWD/tests/input/2021_02_19/14/1:/in -v $PWD/output:/out i3sa:latest run_i3sa.py --conf /conf/robot.yaml --model /conf/reemc.lua --pos /in/pos.csv --vel /in/vel.csv --acc /in/acc.csv --trq /in/trq.csv --ftl /in/ftl.csv --ftr /in/ftr.csv --gait /in/gaitEvents.yaml --out /out
 
 == Example Data
 The example data are obtained by executing the `I3SA - Increased Step Size Stability Assessment` protocol with the humanoid robot REEM-C by PAL Robotics. The input data in the input directory consits of several preprocessed `.csv` files based on a real benchmarking run.
