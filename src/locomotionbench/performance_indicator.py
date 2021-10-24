@@ -19,6 +19,8 @@ from time import time
 import numpy as np
 from scipy.integrate import simps
 import statistics
+import os
+import errno
 
 #  debugging function to use @timing decorator to obtain runtime information of individual performance indicators
 def timing(f):
@@ -119,6 +121,13 @@ class PerformanceIndicator(ABC):
     def write_file(self, filename, file_content):
         try:
             filepath = self.output_folder / filename
+            if not os.path.exists(os.path.dirname(filepath)):
+                try:
+                    os.makedirs(os.path.dirname(filepath))
+                except OSError as exc:
+                    if exc.errno != errno.EEXIST:
+                        raise
+
             with filepath.open("w", encoding ="utf-8") as file:
                 file.write(file_content)
             file.close()
