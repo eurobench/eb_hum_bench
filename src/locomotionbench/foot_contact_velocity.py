@@ -19,7 +19,7 @@ import numpy as np
 
 class FootContactVelocity(PerformanceIndicator):
 
-    _pi_name = 'Foot Contact Velocity'
+    _pi_name = 'foot_contact_velocity'
     _required = ['pos', 'vel', 'phases']
 
     @property
@@ -40,6 +40,10 @@ class FootContactVelocity(PerformanceIndicator):
     def performance_indicator(self):
         angular, linear, angular_agg, linear_agg= self.run_pi()
         if len(angular) == self.len and len(linear) == self.len:
+            for key in angular_agg:
+                self.export_vector(angular_agg[key], f"{self.pi_name}_aggregated_angular_velocity_{key}{self.export_file_type}")
+            for key in linear_agg:
+                self.export_vector(linear_agg[key], f"{self.pi_name}_aggregated_linear_velocity_{key}{self.export_file_type}")
             return 0
         else:
             return -1

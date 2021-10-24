@@ -19,7 +19,7 @@ import rbdl
 
 
 class Com(PerformanceIndicator):
-    _pi_name = 'CoM'
+    _pi_name = 'center_of_mass'
     _required = ['pos', 'vel', 'acc']
 
     @property
@@ -41,6 +41,12 @@ class Com(PerformanceIndicator):
     def performance_indicator(self, pi=None):
         r_c, com_velocity_avg, com_acceleration_avg, h_c_avg_agg, h_c_integral_agg = self.run_pi()
         if len(r_c) == len(self.lead_time):
+            self.export_vector(com_velocity_avg, f"{self.pi_name}_avg_velocity_{self.export_file_type}")
+            self.export_vector(com_acceleration_avg, f"{self.pi_name}_avg_acceleration_{self.export_file_type}")
+            for key in h_c_avg_agg:
+                self.export_vector(h_c_avg_agg[key], f"{self.pi_name}_average_normalized_ang_mom_{key}{self.export_file_type}")
+            for key in h_c_integral_agg:
+                self.export_vector(h_c_integral_agg[key], f"{self.pi_name}_integrate_normalized_ang_mom_{key}{self.export_file_type}")
             return 0
         else:
             return -1

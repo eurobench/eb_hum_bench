@@ -65,8 +65,6 @@ class PerformanceIndicator(ABC):
         self.export_file_type = '.yaml'
         # set output folder path for results
         self.output_folder = output_folder_path
-
-
         self.experiment = experiment
         try:  # pass down error if files were not found in order to skip the metric calculation
             self.read_data(self.required, experiment)

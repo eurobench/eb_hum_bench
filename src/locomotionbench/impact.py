@@ -19,7 +19,7 @@ import numpy as np
 
 class Impact(PerformanceIndicator):
 
-    _pi_name = 'Impact'
+    _pi_name = 'vertical_impact'
     _required = ['phases', 'ftl', 'ftr']
 
     @property
@@ -39,6 +39,8 @@ class Impact(PerformanceIndicator):
     def performance_indicator(self):
         impact, impact_agg = self.run_pi()
         if len(impact) == len(self.lead_time):
+            for key in impact_agg:
+                self.export_vector(impact_agg[key], f"{self.pi_name}_maximum_aggregated_{key}{self.export_file_type}")
             return 0
         else:
             return -1

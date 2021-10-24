@@ -22,7 +22,7 @@ from scipy.spatial.transform import Rotation as Rt
 
 class BaseOrientationError(PerformanceIndicator):
 
-    _pi_name = 'Base Orientation Error'
+    _pi_name = 'base_orientation_error'
     _required = ['pos', 'phases']
 
     @property
@@ -41,8 +41,9 @@ class BaseOrientationError(PerformanceIndicator):
     @timing
     def performance_indicator(self):
         result, base_error_l2_agg = self.run_pi()
-
-        if len(result) == self.len:
+        if len(result) == len(self.lead_time):
+            for key in base_error_l2_agg:
+                self.export_vector(base_error_l2_agg[key], f"{self.pi_name}_l2_dist_{key}{self.export_file_type}")
             return 0
         else:
             return -1

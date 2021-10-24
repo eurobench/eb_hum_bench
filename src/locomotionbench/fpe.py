@@ -20,7 +20,7 @@ import rbdl
 
 class Fpe(PerformanceIndicator):
 
-    _pi_name = 'FPE'
+    _pi_name = 'foot_placement_estimator'
     _required = ['pos', 'vel', 'cos', 'phases']
 
     @property
@@ -40,6 +40,14 @@ class Fpe(PerformanceIndicator):
     def performance_indicator(self):
         trajectory, distances, integrals_agg, percentage_agg, min_max_agg, average_dist_agg = self.run_pi()
         if len(distances) == len(self.lead_time):
+            for key in integrals_agg:
+                self.export_vector(integrals_agg[key], f"{self.pi_name}_integrate_bos_dist_{key}{self.export_file_type}")
+            for key in percentage_agg:
+                self.export_vector(percentage_agg[key], f"{self.pi_name}_percentage_bos_dist_{key}{self.export_file_type}")
+            for key in min_max_agg:
+                self.export_vector(min_max_agg[key], f"{self.pi_name}_min_max_bos_dist_{key}{self.export_file_type}")
+            for key in average_dist_agg:
+                self.export_vector(average_dist_agg[key], f"{self.pi_name}_average_bos_dist_{key}{self.export_file_type}")
             return 0
         else:
             return -1

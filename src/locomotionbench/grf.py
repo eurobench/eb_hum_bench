@@ -19,7 +19,7 @@ import numpy as np
 
 class GroundReactionForces(PerformanceIndicator):
 
-    _pi_name = 'Ground Reaction Forces'
+    _pi_name = 'ground_reaction_forces'
     _required = ['phases', 'ftl', 'ftr']
 
     @property
@@ -37,9 +37,11 @@ class GroundReactionForces(PerformanceIndicator):
 
     @timing
     def performance_indicator(self):
-        result, is_ok = self.run_pi()
+        grf, grf_agg = self.run_pi()
 
-        if all(is_ok):
+        if len(grf) == len(self.lead_time):
+            for key in grf_agg:
+                self.export_vector(grf_agg[key], f"{self.pi_name}_aggregated_{key}{self.export_file_type}")
             return 0
         else:
             return -1

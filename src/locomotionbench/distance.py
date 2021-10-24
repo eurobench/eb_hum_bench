@@ -20,7 +20,7 @@ import rbdl
 
 class DistanceTravelled(PerformanceIndicator):
 
-    _pi_name = 'Distance Travelled'
+    _pi_name = 'distance_travelled'
     _required = ['pos', 'phases']
 
     @property
@@ -42,8 +42,9 @@ class DistanceTravelled(PerformanceIndicator):
 
     @timing
     def performance_indicator(self):
-        result, is_ok = self.run_pi()
-        if all(is_ok):
+        result, distance, is_ok = self.run_pi()
+        if len(is_ok) == len(self.lead_time):
+            self.export_scalar(distance, f"{self.pi_name}_{self.export_file_type}")
             return 0
         else:
             return -1
@@ -51,7 +52,7 @@ class DistanceTravelled(PerformanceIndicator):
     def run_pi(self):
         is_ok = [self.__metric(np.ascontiguousarray(q), phases) for q, phases in zip(self.q, zip(self.phases[['fl_single', 'fr_single', 'double']].to_numpy()))]
         result = self.distance_traveled / (self.n_steps * self.robot.leg_length)
-        return result, is_ok
+        return result, self.distance_traveled, is_ok
 
     def __metric(self, q_, phases):
         left, right, double = phases[0]
