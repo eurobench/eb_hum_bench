@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<test_plan>
+    <test pi_name="run_i3sa.py"
+          parameters="--conf /in/reemc_conf/robot.yaml --model /in/reemc_conf/reemc.lua --pos /in/input/2021_02_19/14/1/pos.csv --vel /in/input/2021_02_19/14/1/vel.csv --acc /in/input/2021_02_19/14/1/acc.csv --trq /in/input/2021_02_19/14/1/trq.csv --ftl /in/input/2021_02_19/14/1/ftl.csv --ftr /in/input/2021_02_19/14/1/ftr.csv --gait /in/input/2021_02_19/14/1/gaitEvents.yaml --out /out"
+          input_folder="."
+          output_folder="output/2021_02_19/14/1"/>
+</test_plan>
