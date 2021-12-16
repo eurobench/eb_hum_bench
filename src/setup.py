@@ -38,5 +38,8 @@ setuptools.setup(
         "six",
         "sklearn",
         "threadpoolctl"
-    ]
+    ],
+    entry_points ={
+        'console_scripts': ['run_i3sa = src.script.run_i3sa:entry_point']
+    }
 )

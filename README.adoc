@@ -59,6 +59,11 @@ Assuming the tests/reemc_conf/ contains the robot data (in this case REEM-C), te
 [source]
 docker run --rm -v $PWD/tests/reemc_conf:/conf -v $PWD/tests/input/2021_02_19/14/1:/in -v $PWD/output:/out i3sa:latest run_i3sa.py --conf /conf/robot.yaml --model /conf/reemc.lua --pos /in/pos.csv --vel /in/vel.csv --acc /in/acc.csv --trq /in/trq.csv --ftl /in/ftl.csv --ftr /in/ftr.csv --gait /in/gaitEvents.yaml --out /out
 
+Using the _Eurobench constraint_:
+
+[source]
+docker run --rm -v $PWD/tests/reemc_conf:/conf -v $PWD/tests/input/2021_02_19/14/1:/in -v $PWD/output:/out i3sa:latest run_i3sa /conf/robot.yaml /conf/reemc.lua /in/pos.csv  /in/vel.csv /in/acc.csv /in/trq.csv /in/ftl.csv /in/ftr.csv /in/gaitEvents.yaml /out
+
 == Example Data
 The example data are obtained by executing the `I3SA - Increased Step Size Stability Assessment` protocol with the humanoid robot REEM-C by PAL Robotics. The input data in the input directory consits of several preprocessed `.csv` files based on a real benchmarking run.
 

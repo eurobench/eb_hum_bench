@@ -30,7 +30,7 @@ from src.locomotionbench.performance_indicator import timing
 from src.script.gait_event_conversion import gaitevents_to_framelist
 
 
-def parse_args():
+def parse_args(args):
     parser = argparse.ArgumentParser(description='Process EUROBENCH File Format')
     parser.add_argument('--conf', type=argparse.FileType('r'), required=True)
     parser.add_argument('--model', type=argparse.FileType('r'), required=True)
@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument('--trq', type=argparse.FileType('r'))
     parser.add_argument('--ftl', type=argparse.FileType('r'))
     parser.add_argument('--ftr', type=argparse.FileType('r'))
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 # Robot class to collect all the information for the used robot to expose it to performance calculation routine
