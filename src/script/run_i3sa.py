@@ -182,7 +182,7 @@ if __name__ == '__main__':
 
 
 ENTRY_USAGE = """
-usage: run_i3s1 tests/reemc_conf/robot.yaml tests/reemc_conf/reemc.lua tests/input/2021_02_19/14/1/pos.csv tests/input/2021_02_19/14/1/vel.csv tests/input/2021_02_19/14/1/acc.csv tests/input/2021_02_19/14/1/trq.csv tests/input/2021_02_19/14/1/ftl.csv tests/input/2021_02_19/14/1/ftr.csv tests/input/2021_02_19/14/1/gaitEvents.yaml output/
+usage: run_i3sa tests/reemc_conf/robot.yaml tests/reemc_conf/reemc.lua tests/input/2021_02_19/14/1/pos.csv tests/input/2021_02_19/14/1/vel.csv tests/input/2021_02_19/14/1/acc.csv tests/input/2021_02_19/14/1/trq.csv tests/input/2021_02_19/14/1/ftl.csv tests/input/2021_02_19/14/1/ftr.csv tests/input/2021_02_19/14/1/gaitEvents.yaml output/
 robot.yaml: robot specific data
 robot.lua: robot description
 joint_states.csv: joint angle file

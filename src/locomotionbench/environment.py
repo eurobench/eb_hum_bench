@@ -418,13 +418,16 @@ class Experiment:
     def reindex_columns(self, body_map):
         # TODO check order for all files in a smart way
         self.files['pos'] = self.get_file('pos').reindex(columns=['time'] + body_map)
-        self.files['vel'] = self.get_file('vel').reindex(columns=['time'] + body_map)
+        if 'vel' not in self.files_not_provided:
+            self.files['vel'] = self.get_file('vel').reindex(columns=['time'] + body_map)
         if 'acc' not in self.files_not_provided:
             self.files['acc'] = self.get_file('acc').reindex(columns=['time'] + body_map)
         if 'trq' not in self.files_not_provided:
             self.files['trq'] = self.get_file('trq').reindex(columns=['time'] + body_map)
 
     def open_file(self, file_type, file, separator):
+        if file is None:
+            return file_type
         try:
             self.files[file_type] = pd.read_csv(file, sep=separator)
         except FileNotFoundError as err:
