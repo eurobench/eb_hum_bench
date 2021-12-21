@@ -52,6 +52,15 @@ docker build -t=i3sa .
 
 Note: The Docker currently does not automatically pull this (private) repository. Please attach to the Docker and use your Gitlab credentials to manually pull the code.
 
+=== Pull docker image
+
+An image maintained by Eurobench can be automatically downloaded, without neeing to clone this code:
+
+[source, console]
+docker pull eurobenchtest/eb_hum_bench
+# if the name i3sa is to be maintained:
+docker tag eurobenchtest/eb_hum_bench i3sa:latest
+
 === Launch the docker image
 
 Assuming the tests/reemc_conf/ contains the robot data (in this case REEM-C), tests/test/input contains the input data, the PI output will be written to output:
